@@ -293,7 +293,7 @@ func PubkeyID(pub *ecdsa.PublicKey) NodeID {
 	var id NodeID
 	pbytes := elliptic.Marshal(pub.Curve, pub.X, pub.Y)
 	if len(pbytes)-1 != len(id) {
-		panic(fmt.Errorf("need %d bit pubkey, got %d bits", (len(id)+1)*8, len(pbytes)))
+		panic(fmt.Errorf("need %d bit pubkey, got %d bits", (len(id)+1)*8, len(pbytes)*8))
 	}
 	copy(id[:], pbytes[1:])
 	return id

@@ -184,8 +184,19 @@ func (tx *Transaction) To() *common.Address {
 
 // To returns the Id of the transaction.
 func (tx *Transaction) SubId() *common.UUID {
+	if tx.data.SubId == nil {
+		return &common.ZeroUUID
+	}
+
 	subId := *tx.data.SubId
 	return &subId
+}
+
+func (tx *Transaction) SetSubId() *common.UUID {
+	if tx.data.SubId == nil {
+		tx.data.SubId = &common.ZeroUUID
+	}
+	return tx.SubId()
 }
 
 // Hash hashes the RLP encoding of tx.

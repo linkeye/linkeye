@@ -334,11 +334,18 @@ func Addr2LetStr(addr common.Address) string {
 }
 
 func Addr2LetStrPtr(addr *common.Address) *string {
+	if addr == nil {
+		return &common.ZeroAddressString
+	}
+
 	hex := (*addr).Hex()
 	hex = strings.ToUpper("LET" + hex[2:len(hex)])
 	return &hex
 }
 func UUIDLetStrPtr(id *common.UUID) *string {
+	if id == nil {
+		return &common.ZeroUUIDString
+	}
 	hex := (*id).Hex()
 	return &hex
 }
@@ -1279,6 +1286,9 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encod
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
+
+	tx.SetSubId()
+
 	return submitTransaction(ctx, s.b, tx)
 }
 

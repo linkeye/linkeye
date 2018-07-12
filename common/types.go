@@ -16,7 +16,7 @@ import (
 const (
 	HashLength    = 32
 	AddressLength = 20
-	UUIDLength = 16
+	UUIDLength    = 16
 )
 
 var (
@@ -123,6 +123,11 @@ func (h UnprefixedHash) MarshalText() ([]byte, error) {
 
 // Address represents the 20 byte address of an Ethereum account.
 type Address [AddressLength]byte
+
+var (
+	ZeroAddress       = Address{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
+	ZeroAddressString = "0x0000000000000000000000000000000000000000"
+)
 
 func BytesToAddress(b []byte) Address {
 	var a Address
@@ -292,7 +297,7 @@ func (ma *MixedcaseAddress) Original() string {
 type UUID [UUIDLength]byte
 
 var (
-	ZeroUUID = UUID{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
+	ZeroUUID       = UUID{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
 	ZeroUUIDString = "0x00000000000000000000000000000000"
 )
 
@@ -319,7 +324,6 @@ func (a UUID) Str() string   { return string(a[:]) }
 func (a UUID) Bytes() []byte { return a[:] }
 func (a UUID) Big() *big.Int { return new(big.Int).SetBytes(a[:]) }
 func (a UUID) Hash() Hash    { return BytesToHash(a[:]) }
-
 
 // Hex returns an EIP55-compliant hex string representation of the address.
 func (a UUID) Hex() string {
