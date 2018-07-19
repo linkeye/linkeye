@@ -732,6 +732,28 @@ func (pm *ProtocolManager) BroadcastTx(hash common.Hash, tx *types.Transaction) 
 	log.Trace("Broadcast transaction", "hash", hash, "recipients", len(peers))
 }
 
+// BroadcastUnknownPendingTxs will propagate all pending transaction to all peers which are not known to
+// already have the given transactions.
+func (pm *ProtocolManager) BroadcastUnknownPendingTxs() {
+	for _, p := range pm.peers.peers {
+		pm.syncUnknownTransactions(p)
+	}
+}
+
+//GetUnknownPendingTxsByPeer will return the unknown txs for the given peer from txpool.pending
+func (pm *ProtocolManager) GetUnknownPendingTxsByPeer(p *peer) types.Transactions {
+	var txs types.Transactions
+	pending, _ := pm.txpool.Pending()
+	for _, batch := range pending {
+		for _, tx := range batch {
+			if !p.HasTx(tx.Hash()) {
+				txs = append(txs, tx)
+			}
+		}
+	}
+	return txs
+}
+
 // Mined broadcast loop
 func (self *ProtocolManager) minedBroadcastLoop() {
 	// automatically stops if unsubscribe
@@ -749,6 +771,7 @@ func (self *ProtocolManager) txBroadcastLoop() {
 		select {
 		case event := <-self.txCh:
 			self.BroadcastTx(event.Tx.Hash(), event.Tx)
+			self.BroadcastUnknownPendingTxs()
 
 		// Err() channel will be closed when unsubscribing.
 		case <-self.txSub.Err():

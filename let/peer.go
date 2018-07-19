@@ -287,6 +287,15 @@ func (p *peer) String() string {
 	)
 }
 
+// HasTx return whether the peer has the given hash from pending Txs
+func (p *peer) HasTx(hash common.Hash) bool {
+	if p == nil {
+		return false
+	}
+
+	return p.knownTxs.Has(hash)
+}
+
 // peerSet represents the collection of active peers currently participating in
 // the Ethereum sub-protocol.
 type peerSet struct {

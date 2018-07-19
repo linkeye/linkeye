@@ -42,6 +42,18 @@ func (pm *ProtocolManager) syncTransactions(p *peer) {
 	}
 }
 
+// syncTransactions starts sending all currently pending transactions to the given peer.
+func (pm *ProtocolManager) syncUnknownTransactions(p *peer) {
+	txs := pm.GetUnknownPendingTxsByPeer(p)
+	if len(txs) == 0 {
+		return
+	}
+	select {
+	case pm.txsyncCh <- &txsync{p, txs}:
+	case <-pm.quitSync:
+	}
+}
+
 // txsyncLoop takes care of the initial transaction sync for each new
 // connection. When a new peer appears, we relay all currently pending
 // transactions. In order to minimise egress bandwidth usage, we send
