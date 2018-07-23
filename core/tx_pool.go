@@ -119,6 +119,8 @@ type TxPoolConfig struct {
 	AccountQueue uint64 // Maximum number of non-executable transaction slots permitted per account
 	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
 
+	BatchSyncSize uint64 // Minimum number of tx pool transactions sync size
+
 	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
 }
 
@@ -135,6 +137,8 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	GlobalSlots:  8192,
 	AccountQueue: 64,
 	GlobalQueue:  1024,
+
+	BatchSyncSize: 8,
 
 	Lifetime: 3 * time.Hour,
 }

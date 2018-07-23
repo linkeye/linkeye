@@ -771,7 +771,15 @@ func (self *ProtocolManager) txBroadcastLoop() {
 		select {
 		case event := <-self.txCh:
 			self.BroadcastTx(event.Tx.Hash(), event.Tx)
-			self.BroadcastUnknownPendingTxs()
+
+			var txs types.Transactions
+			pending, _ := self.txpool.Pending()
+			for _, batch := range pending {
+				txs = append(txs, batch...)
+			}
+			if uint64(len(txs)) > core.DefaultTxPoolConfig.BatchSyncSize && uint64(len(txs)) <= core.DefaultTxPoolConfig.GlobalSlots {
+				self.BroadcastUnknownPendingTxs()
+			}
 
 		// Err() channel will be closed when unsubscribing.
 		case <-self.txSub.Err():

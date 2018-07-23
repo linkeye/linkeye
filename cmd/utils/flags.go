@@ -237,6 +237,11 @@ var (
 		Usage: "Maximum number of non-executable transaction slots for all accounts",
 		Value: let.DefaultConfig.TxPool.GlobalQueue,
 	}
+	TxPoolBatchSyncSizeFlag = cli.Uint64Flag{
+		Name:  "txpool.batchsyncsize",
+		Usage: "Minimum number of tx pool transactions sync size",
+		Value: let.DefaultConfig.TxPool.BatchSyncSize,
+	}
 	TxPoolLifetimeFlag = cli.DurationFlag{
 		Name:  "txpool.lifetime",
 		Usage: "Maximum amount of time non-executable transaction are queued",
