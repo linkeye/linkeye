@@ -77,7 +77,7 @@ type cipherparamsJSON struct {
 
 func (k *Key) MarshalJSON() (j []byte, err error) {
 	jStruct := plainKeyJSON{
-		hex.EncodeToString(k.Address[:]),
+		"LET" + hex.EncodeToString(k.Address[:]),
 		hex.EncodeToString(crypto.FromECDSA(k.PrivateKey)),
 		k.Id.String(),
 		version,
@@ -96,7 +96,13 @@ func (k *Key) UnmarshalJSON(j []byte) (err error) {
 	u := new(uuid.UUID)
 	*u = uuid.Parse(keyJSON.Id)
 	k.Id = *u
-	addr, err := hex.DecodeString(keyJSON.Address)
+
+	s := keyJSON.Address
+	if len(s) > 3 && s[0:3] == "LET" {
+		s = s[3:len(s)]
+	}
+
+	addr, err := hex.DecodeString(s)
 	if err != nil {
 		return err
 	}
