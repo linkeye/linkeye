@@ -330,7 +330,7 @@ func str2Addr(s string) common.Address {
 //convert 0x... to LET...
 func Addr2LetStr(addr common.Address) string {
 	hex := addr.Hex()
-	return strings.ToUpper("LET" + hex[2:len(hex)])
+	return "LET" + hex[2:len(hex)]
 }
 
 func Addr2LetStrPtr(addr *common.Address) *string {
@@ -339,7 +339,7 @@ func Addr2LetStrPtr(addr *common.Address) *string {
 	}
 
 	hex := (*addr).Hex()
-	hex = strings.ToUpper("LET" + hex[2:len(hex)])
+	hex = "LET" + hex[2:len(hex)]
 	return &hex
 }
 func UUIDLetStrPtr(id *common.UUID) *string {
