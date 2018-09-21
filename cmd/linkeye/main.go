@@ -1,5 +1,5 @@
 
-// geth is the official command-line client for Ethereum.
+// linkeye is the official command-line client for Linkeye.
 package main
 
 import (
@@ -179,7 +179,7 @@ func main() {
 	}
 }
 
-// geth is the main entry point into the system if no special subcommand is ran.
+// linkeye is the main entry point into the system if no special subcommand is ran.
 // It creates a default node based on the command line arguments and runs it in
 // blocking mode, waiting for it to be shut down.
 func linkchain(ctx *cli.Context) error {

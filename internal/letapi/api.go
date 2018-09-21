@@ -320,7 +320,6 @@ func (s *PrivateAccountAPI) LockAccount(addr common.Address) bool {
 
 //convert LET... to 0x...
 func str2Addr(s string) common.Address {
-	s = strings.ToUpper(s)
 	if len(s) > 3 && s[0:3] == "LET" {
 		s = "0x" + s[3:len(s)]
 	}
