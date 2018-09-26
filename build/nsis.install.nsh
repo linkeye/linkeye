@@ -12,26 +12,26 @@ PageEx license
   LicenseData {{.License}}
 PageExEnd
 
-# Install geth binary
-Section "Geth" GETH_IDX
+# Install linkeye binary
+Section "Linkeye" LINKEYE_IDX
   SetOutPath $INSTDIR
-  file {{.Geth}}
+  file {{.Linkeye}}
 
   # Create start menu launcher
   createDirectory "$SMPROGRAMS\${APPNAME}"
-  createShortCut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\geth.exe" "--fast" "--cache=512"
-  createShortCut "$SMPROGRAMS\${APPNAME}\Attach.lnk" "$INSTDIR\geth.exe" "attach" "" ""
+  createShortCut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\linkeye.exe" "--fast" "--cache=512"
+  createShortCut "$SMPROGRAMS\${APPNAME}\Attach.lnk" "$INSTDIR\linkeye.exe" "attach" "" ""
   createShortCut "$SMPROGRAMS\${APPNAME}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "" ""
 
   # Firewall - remove rules (if exists)
-  SimpleFC::AdvRemoveRule "Geth incoming peers (TCP:30303)"
-  SimpleFC::AdvRemoveRule "Geth outgoing peers (TCP:30303)"
-  SimpleFC::AdvRemoveRule "Geth UDP discovery (UDP:30303)"
+  SimpleFC::AdvRemoveRule "Linkeye incoming peers (TCP:38883)"
+  SimpleFC::AdvRemoveRule "Linkeye outgoing peers (TCP:38883)"
+  SimpleFC::AdvRemoveRule "Linkeye UDP discovery (UDP:38883)"
 
   # Firewall - add rules
-  SimpleFC::AdvAddRule "Geth incoming peers (TCP:30303)" ""  6 1 1 2147483647 1 "$INSTDIR\geth.exe" "" "" "Ethereum" 30303 "" "" ""
-  SimpleFC::AdvAddRule "Geth outgoing peers (TCP:30303)" ""  6 2 1 2147483647 1 "$INSTDIR\geth.exe" "" "" "Ethereum" "" 30303 "" ""
-  SimpleFC::AdvAddRule "Geth UDP discovery (UDP:30303)" "" 17 2 1 2147483647 1 "$INSTDIR\geth.exe" "" "" "Ethereum" "" 30303 "" ""
+  SimpleFC::AdvAddRule "Linkeye incoming peers (TCP:38883)" ""  6 1 1 2147483647 1 "$INSTDIR\linkeye.exe" "" "" "Ethereum" 38883 "" "" ""
+  SimpleFC::AdvAddRule "Linkeye outgoing peers (TCP:38883)" ""  6 2 1 2147483647 1 "$INSTDIR\linkeye.exe" "" "" "Ethereum" "" 38883 "" ""
+  SimpleFC::AdvAddRule "Linkeye UDP discovery (UDP:38883)" "" 17 2 1 2147483647 1 "$INSTDIR\linkeye.exe" "" "" "Ethereum" "" 38883 "" ""
 
   # Set default IPC endpoint (https://github.com/linkeye/EIPs/issues/147)
   ${EnvVarUpdate} $0 "ETHEREUM_SOCKET" "R" "HKLM" "\\.\pipe\geth.ipc"

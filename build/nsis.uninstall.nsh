@@ -17,9 +17,9 @@ Section "Uninstall"
   rmDir "$SMPROGRAMS\${APPNAME}"
 
   # Firewall - remove rules if exists
-  SimpleFC::AdvRemoveRule "Geth incoming peers (TCP:30303)"
-  SimpleFC::AdvRemoveRule "Geth outgoing peers (TCP:30303)"
-  SimpleFC::AdvRemoveRule "Geth UDP discovery (UDP:30303)"
+  SimpleFC::AdvRemoveRule "Linkeye incoming peers (TCP:38883)"
+  SimpleFC::AdvRemoveRule "Linkeye outgoing peers (TCP:38883)"
+  SimpleFC::AdvRemoveRule "Linkeye UDP discovery (UDP:38883)"
 
   # Remove IPC endpoint (https://github.com/linkeye/EIPs/issues/147)
   ${un.EnvVarUpdate} $0 "ETHEREUM_SOCKET" "R" "HKLM" "\\.\pipe\geth.ipc"
