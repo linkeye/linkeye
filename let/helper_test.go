@@ -17,9 +17,9 @@ import (
 	"github.com/linkeye/linkeye/core/types"
 	"github.com/linkeye/linkeye/core/vm"
 	"github.com/linkeye/linkeye/crypto"
+	"github.com/linkeye/linkeye/event"
 	"github.com/linkeye/linkeye/let/downloader"
 	"github.com/linkeye/linkeye/letdb"
-	"github.com/linkeye/linkeye/event"
 	"github.com/linkeye/linkeye/p2p"
 	"github.com/linkeye/linkeye/p2p/discover"
 	"github.com/linkeye/linkeye/params"
@@ -114,7 +114,7 @@ func (p *testTxPool) SubscribeTxPreEvent(ch chan<- core.TxPreEvent) event.Subscr
 
 // newTestTransaction create a new dummy transaction.
 func newTestTransaction(from *ecdsa.PrivateKey, nonce uint64, datasize int) *types.Transaction {
-	tx := types.NewTransaction(nonce, common.Address{}, big.NewInt(0), 100000, big.NewInt(0), make([]byte, datasize))
+	tx := types.NewTransaction(types.Binary, nonce, common.Address{}, big.NewInt(0), 100000, big.NewInt(0), make([]byte, datasize))
 	tx, _ = types.SignTx(tx, types.HomesteadSigner{}, from)
 	return tx
 }

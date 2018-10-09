@@ -866,6 +866,7 @@ func (s *PublicBlockChainAPI) rpcOutputBlock(b *types.Block, inclTx bool, fullTx
 
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
 type RPCTransaction struct {
+	Type             types.TxType   `json:"type"`
 	BlockHash        common.Hash    `json:"blockHash"`
 	BlockNumber      *hexutil.Big   `json:"blockNumber"`
 	From             string         `json:"from"`
@@ -894,6 +895,7 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 	v, r, s := tx.RawSignatureValues()
 
 	result := &RPCTransaction{
+		Type:     tx.Type(),
 		From:     Addr2LetStr(from),
 		Gas:      hexutil.Uint64(tx.Gas()),
 		GasPrice: (*hexutil.Big)(tx.GasPrice()),
@@ -1076,6 +1078,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 		"blockNumber":       hexutil.Uint64(blockNumber),
 		"transactionHash":   hash,
 		"transactionIndex":  hexutil.Uint64(index),
+		"type":              tx.Type(),
 		"from":              Addr2LetStr(from),
 		"to":                Addr2LetStrPtr(tx.To()),
 		"subId":             tx.SubId().Hex(),
@@ -1104,6 +1107,10 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 
 // sign is a helper function that signs a transaction with the private key of the given address.
 func (s *PublicTransactionPoolAPI) sign(addr common.Address, tx *types.Transaction) (*types.Transaction, error) {
+	if err := tx.Validate(); err != nil {
+		return nil, err
+	}
+
 	// Look up the wallet containing the requested signer
 	account := accounts.Account{Address: addr}
 
@@ -1128,6 +1135,7 @@ type SendTxArgs struct {
 	Value    *hexutil.Big    `json:"value"`
 	Fee      *hexutil.Big    `json:"fee"`
 	Nonce    *hexutil.Uint64 `json:"nonce"`
+	Type     types.TxType    `json:"type"`
 	SubId    *string         `json:"subId"`
 	// We accept "data" and "input" for backwards-compatibility reasons. "input" is the
 	// newer name and should be preferred by clients.
@@ -1215,15 +1223,19 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	} else if args.Input != nil {
 		input = *args.Input
 	}
-	if args.To == nil {
+	if args.Type == types.Binary && args.To == nil {
 		return types.NewContractCreation(uint64(*args.Nonce), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 	}
 
-	return types.NewTransactionLet(uint64(*args.Nonce), str2Addr(*args.To), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), common.HexToUUID(*args.SubId), input)
+	return types.NewTransactionLet(args.Type, uint64(*args.Nonce), str2Addr(*args.To), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), common.HexToUUID(*args.SubId), input)
 }
 
 // submitTransaction is a helper function that submits tx to txPool and logs a message.
 func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (common.Hash, error) {
+	if err := tx.Validate(); err != nil {
+		return common.Hash{}, err
+	}
+
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err
 	}

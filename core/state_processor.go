@@ -52,7 +52,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		receipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
+		receipt, _, err := ApplyTransaction(p.config, block.DposCtx(), p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, 0, err
 		}
@@ -69,11 +69,16 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
+func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext, bc *BlockChain, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
 		return nil, 0, err
 	}
+
+	if msg.To() == nil && msg.Type() != types.Binary {
+		return nil, 0, types.ErrInvalidType
+	}
+
 	// Create a new context to be used in the EVM environment
 	context := NewEVMContext(msg, header, bc, author)
 	// Create a new environment which holds all relevant information
@@ -84,6 +89,12 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	if err != nil {
 		return nil, 0, err
 	}
+	if msg.Type() != types.Binary {
+		if err = applyDposMessage(dposContext, msg); err != nil {
+			return nil, 0, err
+		}
+	}
+
 	// Update the state with pending changes
 	var root []byte
 	if config.IsByzantium(header.Number) {
@@ -107,4 +118,20 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 
 	return receipt, gas, err
+}
+
+func applyDposMessage(dposContext *types.DposContext, msg types.Message) error {
+	switch msg.Type() {
+	case types.LoginCandidate:
+		dposContext.BecomeCandidate(msg.From())
+	case types.LogoutCandidate:
+		dposContext.KickoutCandidate(msg.From())
+	case types.Delegate:
+		dposContext.Delegate(msg.From(), *(msg.To()))
+	case types.UnDelegate:
+		dposContext.UnDelegate(msg.From(), *(msg.To()))
+	default:
+		return types.ErrInvalidType
+	}
+	return nil
 }
