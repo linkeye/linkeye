@@ -219,18 +219,22 @@ func (g *Genesis) ToBlock(db letdb.Database) *types.Block {
 		}
 	}
 	root := statedb.IntermediateRoot(false)
+	// add dposcontext
+	dposContext := initGenesisDposContext(g, db)
+	dposContextProto := dposContext.ToProto()
 	head := &types.Header{
-		Number:     new(big.Int).SetUint64(g.Number),
-		Nonce:      types.EncodeNonce(g.Nonce),
-		Time:       new(big.Int).SetUint64(g.Timestamp),
-		ParentHash: g.ParentHash,
-		Extra:      g.ExtraData,
-		GasLimit:   g.GasLimit,
-		GasUsed:    g.GasUsed,
-		Difficulty: g.Difficulty,
-		MixDigest:  g.Mixhash,
-		Coinbase:   g.Coinbase,
-		Root:       root,
+		Number:      new(big.Int).SetUint64(g.Number),
+		Nonce:       types.EncodeNonce(g.Nonce),
+		Time:        new(big.Int).SetUint64(g.Timestamp),
+		ParentHash:  g.ParentHash,
+		Extra:       g.ExtraData,
+		GasLimit:    g.GasLimit,
+		GasUsed:     g.GasUsed,
+		Difficulty:  g.Difficulty,
+		MixDigest:   g.Mixhash,
+		Coinbase:    g.Coinbase,
+		Root:        root,
+		DposContext: dposContextProto,
 	}
 	if g.GasLimit == 0 {
 		head.GasLimit = params.GenesisGasLimit
@@ -241,13 +245,20 @@ func (g *Genesis) ToBlock(db letdb.Database) *types.Block {
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 
-	return types.NewBlock(head, nil, nil, nil)
+	block := types.NewBlock(head, nil, nil, nil)
+	block.DposContext = dposContext
+
+	return block
 }
 
 // Commit writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
 func (g *Genesis) Commit(db letdb.Database) (*types.Block, error) {
 	block := g.ToBlock(db)
+	// add dposcontext
+	if _, err := block.DposContext.Commit(); err != nil {
+		return nil, err
+	}
 	if block.Number().Sign() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with number > 0")
 	}
@@ -368,4 +379,19 @@ func decodePrealloc(data string) GenesisAlloc {
 		ga[common.BigToAddress(account.Addr)] = GenesisAccount{Balance: account.Balance}
 	}
 	return ga
+}
+
+func initGenesisDposContext(g *Genesis, db letdb.Database) *types.DposContext {
+	dc, err := types.NewDposContextFromProto(db, &types.DposContextProto{})
+	if err != nil {
+		return nil
+	}
+	if g.Config != nil && g.Config.DPOS != nil && g.Config.DPOS.Validators != nil {
+		dc.SetValidators(g.Config.DPOS.Validators)
+		for _, validator := range g.Config.DPOS.Validators {
+			dc.DelegateTrie().TryUpdate(append(validator.Bytes(), validator.Bytes()...), validator.Bytes())
+			dc.CandidateTrie().TryUpdate(validator.Bytes(), validator.Bytes())
+		}
+	}
+	return dc
 }

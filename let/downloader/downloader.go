@@ -1495,6 +1495,11 @@ func (d *Downloader) commitFastSyncData(results []*fetchResult, stateSync *state
 func (d *Downloader) commitPivotBlock(result *fetchResult) error {
 	block := types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles)
 	log.Debug("Committing fast sync pivot as new head", "number", block.Number(), "hash", block.Hash())
+
+	if err := d.syncDposContextState(block.Header().DposContext); err != nil {
+		return err
+	}
+
 	if _, err := d.blockchain.InsertReceiptChain([]*types.Block{block}, []types.Receipts{result.Receipts}); err != nil {
 		return err
 	}
@@ -1502,6 +1507,23 @@ func (d *Downloader) commitPivotBlock(result *fetchResult) error {
 		return err
 	}
 	atomic.StoreInt32(&d.committed, 1)
+	return nil
+}
+
+// Todo: sync dpos context in concurrent
+func (d *Downloader) syncDposContextState(context *types.DposContextProto) error {
+	roots := []common.Hash{
+		context.CandidateHash,
+		context.DelegateHash,
+		context.VoteHash,
+		context.EpochHash,
+		context.MintCntHash,
+	}
+	for _, root := range roots {
+		if err := d.syncState(root).Wait(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

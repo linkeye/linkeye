@@ -103,14 +103,15 @@ type ChainConfig struct {
 	ConstantinopleBlock *big.Int `json:"constantinopleBlock,omitempty"` // Constantinople switch block (nil = no fork, 0 = already activated)
 
 	// Various consensus engines
-	DPOS     *DPOSConfig     `json:"dpos,omitempty"`
-	BFT *BFTConfig `json:"bft,omitempty"`
+	DPOS *DPOSConfig `json:"dpos,omitempty"`
+	BFT  *BFTConfig  `json:"bft,omitempty"`
 }
 
 // CliqueConfig is the consensus engine configs for proof-of-authority based sealing.
 type DPOSConfig struct {
-	Period uint64 `json:"period"` // Number of seconds between blocks to enforce
-	Epoch  uint64 `json:"epoch"`  // Epoch length to reset votes and checkpoint
+	Period     uint64           `json:"period"`     // Number of seconds between blocks to enforce
+	Epoch      uint64           `json:"epoch"`      // Epoch length to reset votes and checkpoint
+	Validators []common.Address `json:"validators"` // Genesis validator list
 }
 
 // String implements the stringer interface, returning the consensus engine details.

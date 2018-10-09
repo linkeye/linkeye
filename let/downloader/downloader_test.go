@@ -14,8 +14,8 @@ import (
 	"github.com/linkeye/linkeye/core"
 	"github.com/linkeye/linkeye/core/types"
 	"github.com/linkeye/linkeye/crypto"
-	"github.com/linkeye/linkeye/letdb"
 	"github.com/linkeye/linkeye/event"
+	"github.com/linkeye/linkeye/letdb"
 	"github.com/linkeye/linkeye/params"
 	"github.com/linkeye/linkeye/trie"
 )
@@ -110,8 +110,9 @@ func (dl *downloadTester) makeChain(n int, seed byte, parent *types.Block, paren
 		// If the block number is a multiple of 5, add a bonus uncle to the block
 		if i > 0 && i%5 == 0 {
 			block.AddUncle(&types.Header{
-				ParentHash: block.PrevBlock(i - 1).Hash(),
-				Number:     big.NewInt(block.Number().Int64() - 1),
+				ParentHash:  block.PrevBlock(i - 1).Hash(),
+				Number:      big.NewInt(block.Number().Int64() - 1),
+				DposContext: &types.DposContextProto{},
 			})
 		}
 	})

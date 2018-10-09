@@ -15,6 +15,7 @@ import (
 	"github.com/linkeye/linkeye/common"
 	"github.com/linkeye/linkeye/common/mclock"
 	"github.com/linkeye/linkeye/consensus"
+	"github.com/linkeye/linkeye/consensus/dpos"
 	"github.com/linkeye/linkeye/core/state"
 	"github.com/linkeye/linkeye/core/types"
 	"github.com/linkeye/linkeye/core/vm"
@@ -881,6 +882,11 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	if err := WriteBlock(batch, block); err != nil {
 		return NonStatTy, err
 	}
+
+	if _, err := block.DposContext.Commit(); err != nil {
+		return NonStatTy, err
+	}
+
 	root, err := state.Commit(bc.chainConfig.IsEIP158(block.Number()))
 	if err != nil {
 		return NonStatTy, err
@@ -1123,6 +1129,12 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		} else {
 			parent = chain[i-1]
 		}
+
+		block.DposContext, err = types.NewDposContextFromProto(bc.db, parent.Header().DposContext)
+		if err != nil {
+			return i, events, coalescedLogs, err
+		}
+
 		state, err := state.New(parent.Root(), bc.stateCache)
 		if err != nil {
 			return i, events, coalescedLogs, err
@@ -1139,6 +1151,23 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}
+
+		// Validate the dpos state using the default validator
+		err = bc.Validator().ValidateDposState(block)
+		if err != nil {
+			bc.reportBlock(block, receipts, err)
+			return i, events, coalescedLogs, err
+		}
+		// Validate validator
+		dposEngine, isDpos := bc.engine.(*dpos.DPOS)
+		if isDpos {
+			err = dposEngine.VerifySeal(bc, block.Header())
+			if err != nil {
+				bc.reportBlock(block, receipts, err)
+				return i, events, coalescedLogs, err
+			}
+		}
+
 		proctime := time.Since(bstart)
 
 		// Write the block to the chain and get the status.
