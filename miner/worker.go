@@ -50,11 +50,12 @@ type Work struct {
 	config *params.ChainConfig
 	signer types.Signer
 
-	state     *state.StateDB // apply state changes here
-	ancestors *set.Set       // ancestor set (used for checking uncle parent validity)
-	family    *set.Set       // family set (used for checking uncle invalidity)
-	uncles    *set.Set       // uncle set
-	tcount    int            // tx count in cycle
+	state       *state.StateDB // apply state changes here
+	dposContext *types.DposContext
+	ancestors   *set.Set // ancestor set (used for checking uncle parent validity)
+	family      *set.Set // family set (used for checking uncle invalidity)
+	uncles      *set.Set // uncle set
+	tcount      int      // tx count in cycle
 
 	Block *types.Block // the new block
 
@@ -368,16 +369,23 @@ func (self *worker) makeCurrent(parent *types.Block, header *types.Header) error
 	if err != nil {
 		return err
 	}
+
+	dposContext, err := types.NewDposContextFromProto(self.chainDb, parent.Header().DposContext)
+	if err != nil {
+		return err
+	}
+
 	work := &Work{
-		config:    self.config,
-		signer:    types.NewEIP155Signer(self.config.ChainId),
-		state:     state,
-		ancestors: set.New(),
-		family:    set.New(),
-		uncles:    set.New(),
-		header:    header,
-		createdAt: time.Now(),
-		worker:    self,
+		config:      self.config,
+		signer:      types.NewEIP155Signer(self.config.ChainId),
+		state:       state,
+		dposContext: dposContext,
+		ancestors:   set.New(),
+		family:      set.New(),
+		uncles:      set.New(),
+		header:      header,
+		createdAt:   time.Now(),
+		worker:      self,
 	}
 
 	// when 08 is processed ancestors contain 07 (quick block)
@@ -709,10 +717,11 @@ func (env *Work) commitTransactionsMining(mux *event.TypeMux, txs *types.Transac
 
 func (env *Work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, coinbase common.Address, gp *core.GasPool) (error, []*types.Log) {
 	snap := env.state.Snapshot()
-
-	receipt, _, err := core.ApplyTransaction(env.config, nil, bc, &coinbase, gp, env.state, env.header, tx, &env.header.GasUsed, vm.Config{})
+	dposSnap := env.dposContext.Snapshot()
+	receipt, _, err := core.ApplyTransaction(env.config, env.dposContext, bc, &coinbase, gp, env.state, env.header, tx, &env.header.GasUsed, vm.Config{})
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
+		env.dposContext.RevertToSnapShot(dposSnap)
 		return err, nil
 	}
 	env.txs = append(env.txs, tx)

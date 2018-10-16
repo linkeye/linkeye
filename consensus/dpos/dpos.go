@@ -4,6 +4,7 @@ package dpos
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"hash"
 	"math/big"
 	"math/rand"
@@ -33,6 +34,10 @@ const (
 	inmemorySignatures = 4096 // Number of recent block signatures to keep in memory
 
 	wiggleTime = 500 * time.Millisecond // Random delay (per signer) to allow concurrent signers
+
+	maxValidatorSize = 21
+	safeSize         = maxValidatorSize*2/3 + 1
+	consensusSize    = maxValidatorSize*2/3 + 1
 )
 
 // Clique proof-of-authority protocol constants.
@@ -116,6 +121,13 @@ var (
 	// on an instant chain (0 second period). It's important to refuse these as the
 	// block reward is zero, so an empty block just bloats the chain... fast.
 	errWaitTransactions = errors.New("waiting for transactions")
+
+	ErrWaitForPrevBlock           = errors.New("wait for last block arrived")
+	ErrMintFutureBlock            = errors.New("mint the future block")
+	ErrMismatchSignerAndValidator = errors.New("mismatch block signer and validator")
+	ErrInvalidBlockValidator      = errors.New("invalid block validator")
+	ErrInvalidMintBlockTime       = errors.New("invalid time to mint the block")
+	ErrNilBlockHeader             = errors.New("nil block header returned")
 )
 
 // SignerFn is a signer callback function to request a hash to be signed by a
@@ -334,6 +346,10 @@ func (c *DPOS) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 			}
 		}
 
+		if bytes.Compare(signer.Bytes(), header.Validator.Bytes()) != 0 {
+			return ErrMismatchSignerAndValidator
+		}
+
 		expected := CalcDifficulty(epoch, signer, parent)
 
 		if expected.Cmp(header.Difficulty) != 0 {
@@ -550,6 +566,9 @@ func (c *DPOS) Prepare(chain consensus.ChainReader, header *types.Header) error 
 		c.lock.RUnlock()
 	}*/
 
+	// set Validator
+	header.Validator = c.signer
+
 	// Set the correct difficulty
 	header.Difficulty = CalcDifficulty(epoch, c.signer, parent)
 
@@ -616,8 +635,31 @@ func (c *DPOS) Finalize(chain consensus.ChainReader, header *types.Header, state
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)
 
+	number := header.Number.Uint64()
+	parent := chain.GetHeader(header.ParentHash, number-1)
+	if parent == nil {
+		return nil, consensus.ErrUnknownAncestor
+	}
+	// get current block sanpshot
+	epoch, err := c.epochContext(chain, number-1, header.ParentHash, parent)
+	if err != nil {
+		return nil, err
+	}
+
+	genesis := chain.GetHeaderByNumber(0)
+	err = epoch.tryElect(genesis, parent)
+	if err != nil {
+		return nil, fmt.Errorf("got error when elect next epoch, err: %s", err)
+	}
+
+	//update mint count trie
+	//updateMintCnt(parent.Time.Int64(), header.Time.Int64(), header.Validator, dposContext)
+	header.DposContext = epoch.DposContext.ToProto()
+
 	// Assemble and return the final block for sealing
-	return types.NewBlock(header, txs, nil, receipts), nil
+	block := types.NewBlock(header, txs, nil, receipts)
+	block.DposContext = epoch.DposContext
+	return block, nil
 }
 
 // Authorize injects a private key into the consensus engine to mint new blocks
