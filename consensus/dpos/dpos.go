@@ -409,6 +409,21 @@ func (c *DPOS) epochContext(chain consensus.ChainReader, number uint64, hash com
 		return nil, err
 	}
 
+	// get recent block signers list
+	curHeader := chain.GetHeaderByHash(hash)
+	if curHeader == nil {
+		return nil, ErrNilBlockHeader
+	}
+	for curHeader.Number.Uint64() > 0 && len(epoch.Recents) <= (len(epoch.Signers)/2+1) {
+
+		epoch.Recents[curHeader.Number.Uint64()] = curHeader.Validator
+
+		curHeader = chain.GetHeaderByHash(curHeader.ParentHash)
+		if curHeader == nil {
+			return nil, ErrNilBlockHeader
+		}
+	}
+
 	c.recents.Add(epoch.Hash, epoch)
 
 	return epoch, nil

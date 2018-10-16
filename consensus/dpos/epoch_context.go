@@ -70,6 +70,7 @@ func newEpochContext(number uint64, hash common.Hash, dposContext *types.DposCon
 		Recents:     make(map[uint64]common.Address),
 	}
 
+	// get signer list
 	validators, err := dposContext.GetValidators()
 	if err != nil {
 		return nil, err
