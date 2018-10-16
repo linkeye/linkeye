@@ -135,6 +135,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 	rlp.Encode(hasher, []interface{}{
 		header.ParentHash,
 		header.UncleHash,
+		header.Validator,
 		header.Coinbase,
 		header.Root,
 		header.TxHash,
@@ -148,6 +149,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 		header.Extra[:len(header.Extra)-65], // Yes, this will panic if extra is too short
 		header.MixDigest,
 		header.Nonce,
+		header.DposContext.Root(),
 	})
 	hasher.Sum(hash[:0])
 	return hash
@@ -311,7 +313,7 @@ func (c *DPOS) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 		}
 
 		// Retrieve the snapshot needed to verify this header and cache it
-		snap, err := c.snapshot(chain, number-1, header.ParentHash, parents)
+		epoch, err := c.epochContext(chain, number-1, header.ParentHash, parent)
 		if err != nil {
 			return err
 		}
@@ -320,19 +322,19 @@ func (c *DPOS) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 		if err != nil {
 			return err
 		}
-		if _, ok := snap.Signers[signer]; !ok {
+		if _, ok := epoch.Signers[signer]; !ok {
 			return errUnauthorized
 		}
-		for seen, recent := range snap.Recents {
+		for seen, recent := range epoch.Recents {
 			if recent == signer {
 				// Signer is among recents, only fail if the current block doesn't shift it out
-				if limit := uint64(len(snap.Signers)/2 + 1); seen > number-limit {
+				if limit := uint64(len(epoch.Signers)/2 + 1); seen > number-limit {
 					return errUnauthorized
 				}
 			}
 		}
 
-		expected := CalcDifficulty(snap, signer, parent)
+		expected := CalcDifficulty(epoch, signer, parent)
 
 		if expected.Cmp(header.Difficulty) != 0 {
 			return errInvalidDifficulty
@@ -370,101 +372,46 @@ func (c *DPOS) verifyCascadingFields(chain consensus.ChainReader, header *types.
 	if parent.Time.Uint64()+c.config.Period > header.Time.Uint64() {
 		return ErrInvalidTimestamp
 	}
-	// Retrieve the snapshot needed to verify this header and cache it
-	snap, err := c.snapshot(chain, number-1, header.ParentHash, parents)
-	if err != nil {
-		return err
-	}
+
 	// If the block is a checkpoint block, verify the signer list
-	if number%c.config.Epoch == 0 {
-		signers := make([]byte, len(snap.Signers)*common.AddressLength)
-		for i, signer := range snap.signers() {
+	// no need for dpos
+	/*if number%c.config.Epoch == 0 {
+		signers := make([]byte, len(epoch.Signers)*common.AddressLength)
+		for i, signer := range epoch.signers() {
 			copy(signers[i*common.AddressLength:], signer[:])
 		}
 		extraSuffix := len(header.Extra) - extraSeal
 		if !bytes.Equal(header.Extra[extraVanity:extraSuffix], signers) {
 			return errInvalidCheckpointSigners
 		}
-	}
+	}*/
 	// All basic checks passed, verify the seal and return
 	return c.verifySeal(chain, header, parents)
 }
 
 // snapshot retrieves the authorization snapshot at a given point in time.
-func (c *DPOS) snapshot(chain consensus.ChainReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
+func (c *DPOS) epochContext(chain consensus.ChainReader, number uint64, hash common.Hash, parent *types.Header) (epoch *EpochContext, err error) {
 	// Search for a snapshot in memory or on disk for checkpoints
-	var (
-		headers []*types.Header
-		snap    *Snapshot
-	)
-	for snap == nil {
-		// If an in-memory snapshot was found, use that
-		if s, ok := c.recents.Get(hash); ok {
-			snap = s.(*Snapshot)
-			break
-		}
-		// If an on-disk checkpoint snapshot can be found, use that
-		if number%checkpointInterval == 0 {
-			if s, err := loadSnapshot(c.config, c.signatures, c.db, hash); err == nil {
-				log.Trace("Loaded voting snapshot form disk", "number", number, "hash", hash)
-				snap = s
-				break
-			}
-		}
-		// If we're at block zero, make a snapshot
-		if number == 0 {
-			genesis := chain.GetHeaderByNumber(0)
-			if err := c.VerifyHeader(chain, genesis, false); err != nil {
-				return nil, err
-			}
-			signers := make([]common.Address, (len(genesis.Extra)-extraVanity-extraSeal)/common.AddressLength)
-			for i := 0; i < len(signers); i++ {
-				copy(signers[i][:], genesis.Extra[extraVanity+i*common.AddressLength:])
-			}
-			snap = newSnapshot(c.config, c.signatures, 0, genesis.Hash(), signers)
-			if err := snap.store(c.db); err != nil {
-				return nil, err
-			}
-			log.Trace("Stored genesis voting snapshot to disk")
-			break
-		}
-		// No snapshot for this header, gather the header and move backward
-		var header *types.Header
-		if len(parents) > 0 {
-			// If we have explicit parents, pick from there (enforced)
-			header = parents[len(parents)-1]
-			if header.Hash() != hash || header.Number.Uint64() != number {
-				return nil, consensus.ErrUnknownAncestor
-			}
-			parents = parents[:len(parents)-1]
-		} else {
-			// No explicit parents (or no more left), reach out to the database
-			header = chain.GetHeader(hash, number)
-			if header == nil {
-				return nil, consensus.ErrUnknownAncestor
-			}
-		}
-		headers = append(headers, header)
-		number, hash = number-1, header.ParentHash
+
+	// If an in-memory snapshot was found, use that
+	if s, ok := c.recents.Get(hash); ok {
+		epoch = s.(*EpochContext)
+		return epoch, nil
 	}
-	// Previous snapshot found, apply any pending headers on top of it
-	for i := 0; i < len(headers)/2; i++ {
-		headers[i], headers[len(headers)-1-i] = headers[len(headers)-1-i], headers[i]
-	}
-	snap, err := snap.apply(headers)
+
+	dposContext, err := types.NewDposContextFromProto(c.db, parent.DposContext)
 	if err != nil {
 		return nil, err
 	}
-	c.recents.Add(snap.Hash, snap)
 
-	// If we've generated a new checkpoint snapshot, save to disk
-	if snap.Number%checkpointInterval == 0 && len(headers) > 0 {
-		if err = snap.store(c.db); err != nil {
-			return nil, err
-		}
-		log.Trace("Stored voting snapshot to disk", "number", snap.Number, "hash", snap.Hash)
+	epoch, err = newEpochContext(number, hash, dposContext)
+	if err != nil {
+		return nil, err
 	}
-	return snap, err
+
+	c.recents.Add(epoch.Hash, epoch)
+
+	return epoch, nil
 }
 
 // VerifyUncles implements consensus.Engine, always returning an error for any
@@ -494,8 +441,19 @@ func (c *DPOS) verifySeal(chain consensus.ChainReader, header *types.Header, par
 	if number == 0 {
 		return errUnknownBlock
 	}
+
+	var parent *types.Header
+	if len(parents) > 0 {
+		parent = parents[len(parents)-1]
+	} else {
+		parent = chain.GetHeader(header.ParentHash, number-1)
+	}
+	if parent == nil || parent.Number.Uint64() != number-1 || parent.Hash() != header.ParentHash {
+		return consensus.ErrUnknownAncestor
+	}
+
 	// Retrieve the snapshot needed to verify this header and cache it
-	snap, err := c.snapshot(chain, number-1, header.ParentHash, parents)
+	epoch, err := c.epochContext(chain, number-1, header.ParentHash, parent)
 	if err != nil {
 		return err
 	}
@@ -505,13 +463,13 @@ func (c *DPOS) verifySeal(chain consensus.ChainReader, header *types.Header, par
 	if err != nil {
 		return err
 	}
-	if _, ok := snap.Signers[signer]; !ok {
+	if _, ok := epoch.Signers[signer]; !ok {
 		return errUnauthorized
 	}
-	for seen, recent := range snap.Recents {
+	for seen, recent := range epoch.Recents {
 		if recent == signer {
 			// Signer is among recents, only fail if the current block doesn't shift it out
-			if limit := uint64(len(snap.Signers)/2 + 1); seen > number-limit {
+			if limit := uint64(len(epoch.Signers)/2 + 1); seen > number-limit {
 				return errUnauthorized
 			}
 		}
@@ -543,18 +501,25 @@ func (c *DPOS) Prepare(chain consensus.ChainReader, header *types.Header) error 
 	header.Nonce = types.BlockNonce{}
 
 	number := header.Number.Uint64()
+
+	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+	if parent == nil {
+		return consensus.ErrUnknownAncestor
+	}
+
 	// Assemble the voting snapshot to check which votes make sense
-	snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
+	epoch, err := c.epochContext(chain, number-1, header.ParentHash, parent)
 	if err != nil {
 		return err
 	}
-	if number%c.config.Epoch != 0 {
+	// no need for dpos
+	/*if number%c.config.Epoch != 0 {
 		c.lock.RLock()
 
 		// Gather all the proposals that make sense voting on
 		addresses := make([]common.Address, 0, len(c.proposals))
 		for address, authorize := range c.proposals {
-			if snap.validVote(address, authorize) {
+			if epoch.validVote(address, authorize) {
 				addresses = append(addresses, address)
 			}
 		}
@@ -568,15 +533,10 @@ func (c *DPOS) Prepare(chain consensus.ChainReader, header *types.Header) error 
 			}
 		}
 		c.lock.RUnlock()
-	}
-
-	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
-	if parent == nil {
-		return consensus.ErrUnknownAncestor
-	}
+	}*/
 
 	// Set the correct difficulty
-	header.Difficulty = CalcDifficulty(snap, c.signer, parent)
+	header.Difficulty = CalcDifficulty(epoch, c.signer, parent)
 
 	// Ensure the extra data has all it's components
 	if len(header.Extra) < extraVanity {
@@ -584,11 +544,12 @@ func (c *DPOS) Prepare(chain consensus.ChainReader, header *types.Header) error 
 	}
 	header.Extra = header.Extra[:extraVanity]
 
-	if number%c.config.Epoch == 0 {
-		for _, signer := range snap.signers() {
+	// no need for dpos
+	/*if number%c.config.Epoch == 0 {
+		for _, signer := range epoch.signers() {
 			header.Extra = append(header.Extra, signer[:]...)
 		}
-	}
+	}*/
 	header.Extra = append(header.Extra, make([]byte, extraSeal)...)
 
 	// Mix digest is reserved for now, set to empty
@@ -607,8 +568,13 @@ func (c *DPOS) JudgeTx(chain consensus.ChainReader, header *types.Header, tx *ty
 	// get the number of the new block
 	number := header.Number.Uint64()
 	//log.Info("PrepareTx number ","number",   number)
+
+	parent := chain.GetHeader(header.ParentHash, number-1)
+	if parent == nil {
+		return consensus.ErrUnknownAncestor
+	}
 	// get current block sanpshot
-	snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
+	epoch, err := c.epochContext(chain, number-1, header.ParentHash, parent)
 	if err != nil {
 		return err
 	}
@@ -616,7 +582,7 @@ func (c *DPOS) JudgeTx(chain consensus.ChainReader, header *types.Header, tx *ty
 	if tx.To() == nil {
 		//log.Info("PrepareTx tx.To() == nil")
 		//judge a account is not a authorizer
-		if _, authorized := snap.Signers[from]; !authorized {
+		if _, authorized := epoch.Signers[from]; !authorized {
 			log.Info("PrepareTx create contract no authorized", "from", from)
 			return errUnauthorized
 		} else {
@@ -670,23 +636,28 @@ func (c *DPOS) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan
 	signer, signFn := c.signer, c.signFn
 	c.lock.RUnlock()
 
+	parent := chain.GetHeader(header.ParentHash, number-1)
+	if parent == nil {
+		return nil, consensus.ErrUnknownAncestor
+	}
+
 	// Bail out if we're unauthorized to sign a block
-	snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
+	epoch, err := c.epochContext(chain, number-1, header.ParentHash, parent)
 	if err != nil {
 		return nil, err
 	}
-	if _, authorized := snap.Signers[signer]; !authorized {
+	if _, authorized := epoch.Signers[signer]; !authorized {
 		return nil, errUnauthorized
 	}
 	// If we're amongst the recent signers, wait for the next block
-	for seen, recent := range snap.Recents {
+	for seen, recent := range epoch.Recents {
 		if recent == signer {
 			// Signer is among recents, only wait if the current block doesn't shift it out
-			if limit := uint64(len(snap.Signers)/2 + 1); number < limit || seen > number-limit {
+			if limit := uint64(len(epoch.Signers)/2 + 1); number < limit || seen > number-limit {
 				log.Info("Signed recently,but < signer/2 + 1")
 				var period int64
 				period = int64(c.config.Period)
-				period = period * int64(len(snap.Signers)/2+1)
+				period = period * int64(len(epoch.Signers)/2+1)
 				//delay := time.Duration((len(snap.Signers)/2+1) * c.config.Period * time.Second)
 				delay := time.Duration(period) * time.Second
 
@@ -706,9 +677,9 @@ func (c *DPOS) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan
 	// Sweet, the protocol permits us to sign the block, wait for our time
 	delay := time.Unix(header.Time.Int64(), 0).Sub(time.Now()) // nolint: gosimple
 	//if header.Difficulty.Cmp(diffNoTurn) == 0 {
-	if !snap.inturn(number, signer) {
+	if !epoch.inturn(number, signer) {
 		// It's not our turn explicitly to sign, delay it a bit
-		wiggle := time.Duration(len(snap.Signers)/2+1) * wiggleTime
+		wiggle := time.Duration(len(epoch.Signers)/2+1) * wiggleTime
 		delay += time.Duration(rand.Int63n(int64(wiggle)))
 
 		log.Info("Out-of-turn signing requested", "wiggle", common.PrettyDuration(wiggle))
@@ -736,7 +707,7 @@ func (c *DPOS) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan
 // that a new block should have based on the previous blocks in the chain and the
 // current signer.
 func (c *DPOS) CalcDifficulty(chain consensus.ChainReader, time uint64, parent *types.Header) *big.Int {
-	snap, err := c.snapshot(chain, parent.Number.Uint64(), parent.Hash(), nil)
+	snap, err := c.epochContext(chain, parent.Number.Uint64(), parent.Hash(), nil)
 	if err != nil {
 		return nil
 	}
@@ -747,27 +718,27 @@ func (c *DPOS) CalcDifficulty(chain consensus.ChainReader, time uint64, parent *
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have based on the previous blocks in the chain and the
 // current signer.
-func CalcDifficulty(snap *Snapshot, signer common.Address, parent *types.Header) *big.Int {
+func CalcDifficulty(epoch *EpochContext, signer common.Address, parent *types.Header) *big.Int {
 	/*if snap.inturn(snap.Number+1, signer) {
 		return new(big.Int).Set(diffInTurn)
 	}
 	return new(big.Int).Set(diffNoTurn)*/
-	if len(snap.Signers) == 0 {
+	if len(epoch.Signers) == 0 {
 		return new(big.Int).SetUint64(0)
 	}
-	soffset := snap.signerIndex(signer)
-	noffset := (snap.Number + 1) % uint64(len(snap.Signers))
+	soffset := epoch.signerIndex(signer)
+	noffset := (epoch.Number + 1) % uint64(len(epoch.Signers))
 	var index uint64
 	if noffset > soffset {
 		index = noffset - soffset
 	} else {
-		index = uint64(len(snap.Signers)) - (soffset - noffset)
+		index = uint64(len(epoch.Signers)) - (soffset - noffset)
 	}
 	//diff = diff * uint64(diffMax) / uint64(len(snap.Signers))
 	//diff = diff + parent.Difficulty
 
 	diff := new(big.Int).SetUint64(index)
-	signerCount := new(big.Int).SetUint64(uint64(len(snap.Signers)))
+	signerCount := new(big.Int).SetUint64(uint64(len(epoch.Signers)))
 	diff.Mul(diff, diffMax)
 	diff.Div(diff, signerCount)
 	//diff.Add(diff, parent.Difficulty)
