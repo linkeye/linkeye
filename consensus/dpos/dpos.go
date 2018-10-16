@@ -1,4 +1,4 @@
-// Package clique implements the proof-of-authority consensus engine.
+// Package dpos implements the Delegated-Proof-of-Stake consensus engine.
 package dpos
 
 import (
@@ -29,9 +29,8 @@ import (
 )
 
 const (
-	checkpointInterval = 1024 // Number of blocks after which to save the vote snapshot to the database
-	inmemorySnapshots  = 128  // Number of recent vote snapshots to keep in memory
-	inmemorySignatures = 4096 // Number of recent block signatures to keep in memory
+	inmemoryEpochContexts = 128  // Number of recent vote epochcontexts to keep in memory
+	inmemorySignatures    = 4096 // Number of recent block signatures to keep in memory
 
 	wiggleTime = 500 * time.Millisecond // Random delay (per signer) to allow concurrent signers
 
@@ -40,7 +39,7 @@ const (
 	consensusSize    = maxValidatorSize*2/3 + 1
 )
 
-// Clique proof-of-authority protocol constants.
+// Delegated-Proof-of-Stake protocol constants.
 var (
 	epochLength = uint64(30000) // Default number of blocks after which to checkpoint and reset the pending votes
 	blockPeriod = uint64(15)    // Default minimum difference between two consecutive block's timestamps
@@ -134,7 +133,7 @@ var (
 // backing account.
 type SignerFn func(accounts.Account, []byte) ([]byte, error)
 
-// sigHash returns the hash which is used as input for the proof-of-authority
+// sigHash returns the hash which is used as input for the Delegated-Proof-of-Stake
 // signing. It is the hash of the entire header apart from the 65 byte signature
 // contained at the end of the extra data.
 //
@@ -167,7 +166,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 	return hash
 }
 
-// ecrecover extracts the Ethereum account address from a signed header.
+// ecrecover extracts the Linkeye account address from a signed header.
 func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, error) {
 	// If the signature's already cached, return that
 	hash := header.Hash()
@@ -180,7 +179,7 @@ func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, er
 	}
 	signature := header.Extra[len(header.Extra)-extraSeal:]
 
-	// Recover the public key and the Ethereum address
+	// Recover the public key and the Linkeye address
 	pubkey, err := crypto.Ecrecover(sigHash(header).Bytes(), signature)
 	if err != nil {
 		return common.Address{}, err
@@ -192,23 +191,22 @@ func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, er
 	return signer, nil
 }
 
-// Clique is the proof-of-authority consensus engine proposed to support the
-// Ethereum testnet following the Ropsten attacks.
+// dpos is the Delegated-Proof-of-Stake consensus engine
 type DPOS struct {
 	config *params.DPOSConfig // Consensus engine configuration parameters
 	db     letdb.Database     // Database to store and retrieve snapshot checkpoints
 
-	recents    *lru.ARCCache // Snapshots for recent block to speed up reorgs
+	recents    *lru.ARCCache // Epochcontexts for recent block to speed up reorgs
 	signatures *lru.ARCCache // Signatures of recent blocks to speed up mining
 
 	proposals map[common.Address]bool // Current list of proposals we are pushing
 
-	signer common.Address // Ethereum address of the signing key
+	signer common.Address // Linkeye address of the signing key
 	signFn SignerFn       // Signer function to authorize hashes with
 	lock   sync.RWMutex   // Protects the signer fields
 }
 
-// New creates a Clique proof-of-authority consensus engine with the initial
+// New creates a Delegated-Proof-of-Stake consensus engine with the initial
 // signers set to the ones provided by the user.
 func New(config *params.DPOSConfig, db letdb.Database) *DPOS {
 	// Set any missing consensus parameters to their defaults
@@ -217,7 +215,7 @@ func New(config *params.DPOSConfig, db letdb.Database) *DPOS {
 		conf.Epoch = epochLength
 	}
 	// Allocate the snapshot caches and create the engine
-	recents, _ := lru.NewARC(inmemorySnapshots)
+	recents, _ := lru.NewARC(inmemoryEpochContexts)
 	signatures, _ := lru.NewARC(inmemorySignatures)
 
 	return &DPOS{
@@ -229,7 +227,7 @@ func New(config *params.DPOSConfig, db letdb.Database) *DPOS {
 	}
 }
 
-// Author implements consensus.Engine, returning the Ethereum address recovered
+// Author implements consensus.Engine, returning the Linkeye address recovered
 // from the signature in the header's extra-data section.
 func (c *DPOS) Author(header *types.Header) (common.Address, error) {
 	return ecrecover(header, c.signatures)
@@ -389,18 +387,6 @@ func (c *DPOS) verifyCascadingFields(chain consensus.ChainReader, header *types.
 		return ErrInvalidTimestamp
 	}
 
-	// If the block is a checkpoint block, verify the signer list
-	// no need for dpos
-	/*if number%c.config.Epoch == 0 {
-		signers := make([]byte, len(epoch.Signers)*common.AddressLength)
-		for i, signer := range epoch.signers() {
-			copy(signers[i*common.AddressLength:], signer[:])
-		}
-		extraSuffix := len(header.Extra) - extraSeal
-		if !bytes.Equal(header.Extra[extraVanity:extraSuffix], signers) {
-			return errInvalidCheckpointSigners
-		}
-	}*/
 	// All basic checks passed, verify the seal and return
 	return c.verifySeal(chain, header, parents)
 }
@@ -483,7 +469,7 @@ func (c *DPOS) verifySeal(chain consensus.ChainReader, header *types.Header, par
 		return consensus.ErrUnknownAncestor
 	}
 
-	// Retrieve the snapshot needed to verify this header and cache it
+	// Retrieve the epochcontext needed to verify this header and cache it
 	epoch, err := c.epochContext(chain, number-1, header.ParentHash, parent)
 	if err != nil {
 		return err
@@ -543,28 +529,6 @@ func (c *DPOS) Prepare(chain consensus.ChainReader, header *types.Header) error 
 	if err != nil {
 		return err
 	}
-	// no need for dpos
-	/*if number%c.config.Epoch != 0 {
-		c.lock.RLock()
-
-		// Gather all the proposals that make sense voting on
-		addresses := make([]common.Address, 0, len(c.proposals))
-		for address, authorize := range c.proposals {
-			if epoch.validVote(address, authorize) {
-				addresses = append(addresses, address)
-			}
-		}
-		// If there's pending proposals, cast a vote on them
-		if len(addresses) > 0 {
-			header.Coinbase = addresses[rand.Intn(len(addresses))]
-			if c.proposals[header.Coinbase] {
-				copy(header.Nonce[:], nonceAuthVote)
-			} else {
-				copy(header.Nonce[:], nonceDropVote)
-			}
-		}
-		c.lock.RUnlock()
-	}*/
 
 	// set Validator
 	header.Validator = c.signer
@@ -578,12 +542,6 @@ func (c *DPOS) Prepare(chain consensus.ChainReader, header *types.Header) error 
 	}
 	header.Extra = header.Extra[:extraVanity]
 
-	// no need for dpos
-	/*if number%c.config.Epoch == 0 {
-		for _, signer := range epoch.signers() {
-			header.Extra = append(header.Extra, signer[:]...)
-		}
-	}*/
 	header.Extra = append(header.Extra, make([]byte, extraSeal)...)
 
 	// Mix digest is reserved for now, set to empty
@@ -596,7 +554,7 @@ func (c *DPOS) Prepare(chain consensus.ChainReader, header *types.Header) error 
 	return nil
 }
 
-// Judge the create contract Transaction from a no authorized account for clique engine.
+// Judge the create contract Transaction from a no authorized account for dpos engine.
 func (c *DPOS) JudgeTx(chain consensus.ChainReader, header *types.Header, tx *types.Transaction, from common.Address) error {
 
 	// get the number of the new block
@@ -607,7 +565,7 @@ func (c *DPOS) JudgeTx(chain consensus.ChainReader, header *types.Header, tx *ty
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
 	}
-	// get current block sanpshot
+	// get current block epochcontext
 	epoch, err := c.epochContext(chain, number-1, header.ParentHash, parent)
 	if err != nil {
 		return err
@@ -640,20 +598,24 @@ func (c *DPOS) Finalize(chain consensus.ChainReader, header *types.Header, state
 	if parent == nil {
 		return nil, consensus.ErrUnknownAncestor
 	}
-	// get current block sanpshot
+	// get current block epochcontext
 	epoch, err := c.epochContext(chain, number-1, header.ParentHash, parent)
 	if err != nil {
 		return nil, err
 	}
 
-	genesis := chain.GetHeaderByNumber(0)
-	err = epoch.tryElect(genesis, parent)
-	if err != nil {
-		return nil, fmt.Errorf("got error when elect next epoch, err: %s", err)
+	// every epoch , reset signer list
+	if number%c.config.Epoch == 0 {
+		genesis := chain.GetHeaderByNumber(0)
+		err = epoch.tryElect(genesis, parent)
+		if err != nil {
+			return nil, fmt.Errorf("got error when elect next epoch, err: %s", err)
+		}
 	}
 
 	//update mint count trie
-	//updateMintCnt(parent.Time.Int64(), header.Time.Int64(), header.Validator, dposContext)
+	epoch.updateMintCnt(header.Validator)
+
 	header.DposContext = epoch.DposContext.ToProto()
 
 	// Assemble and return the final block for sealing
