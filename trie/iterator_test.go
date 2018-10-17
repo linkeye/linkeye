@@ -437,7 +437,7 @@ func TestPrefixIterator(t *testing.T) {
 		all[val.k] = val.v
 		trie.Update([]byte(val.k), []byte(val.v))
 	}
-	trie.Commit()
+	trie.Commit(nil)
 
 	expect := map[string]string{
 		"doge":   "coin",

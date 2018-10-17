@@ -304,22 +304,27 @@ func (d *DposContext) Commit() (*DposContextProto, error) {
 	if err != nil {
 		return nil, err
 	}
+	d.db.Commit(epochRoot, true)
 	delegateRoot, err := d.delegateTrie.Commit(nil)
 	if err != nil {
 		return nil, err
 	}
+	d.db.Commit(delegateRoot, true)
 	voteRoot, err := d.voteTrie.Commit(nil)
 	if err != nil {
 		return nil, err
 	}
+	d.db.Commit(voteRoot, true)
 	candidateRoot, err := d.candidateTrie.Commit(nil)
 	if err != nil {
 		return nil, err
 	}
+	d.db.Commit(candidateRoot, true)
 	mintCntRoot, err := d.mintCntTrie.Commit(nil)
 	if err != nil {
 		return nil, err
 	}
+	d.db.Commit(mintCntRoot, true)
 	return &DposContextProto{
 		EpochHash:     epochRoot,
 		DelegateHash:  delegateRoot,
