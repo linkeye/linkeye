@@ -830,6 +830,11 @@ func (s *PublicBlockChainAPI) rpcOutputBlock(b *types.Block, inclTx bool, fullTx
 		"timestamp":        (*hexutil.Big)(head.Time),
 		"transactionsRoot": head.TxHash,
 		"receiptsRoot":     head.ReceiptHash,
+		"epochRoot":        head.DposContext.EpochHash,
+		"delegateRoot":     head.DposContext.DelegateHash,
+		"candidateRoot":    head.DposContext.CandidateHash,
+		"voteRoot":         head.DposContext.VoteHash,
+		"mintCntRoot":      head.DposContext.MintCntHash,
 	}
 
 	if inclTx {
