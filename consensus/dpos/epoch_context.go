@@ -170,11 +170,11 @@ func (ec *EpochContext) updateMintCnt(validator common.Address) {
 func (ec *EpochContext) tryElect(genesis, parent *types.Header) error {
 
 	// if prevEpoch is not genesis, kickout not active candidate
-	if parent.Number.Uint64() != 0 {
+	/*if parent.Number.Uint64() != 0 {
 		if err := ec.kickoutValidator(); err != nil {
 			return err
 		}
-	}
+	}*/
 
 	votes, err := ec.countVotes()
 	if err != nil {
