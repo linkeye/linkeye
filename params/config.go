@@ -27,8 +27,9 @@ var (
 		ByzantiumBlock:      big.NewInt(1035301),
 		ConstantinopleBlock: nil,
 		DPOS: &DPOSConfig{
-			Period:     5,
-			Epoch:      30000,
+			Period: 5,
+			//Epoch:      30000,
+			Epoch:      30,
 			Validators: []common.Address{common.HexToAddress("0x1250153d47f29446538d68b1acc20c89c786fb8f")},
 		},
 	}
