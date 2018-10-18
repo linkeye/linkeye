@@ -829,6 +829,7 @@ func (s *PublicBlockChainAPI) rpcOutputBlock(b *types.Block, inclTx bool, fullTx
 		"gasUsed":          hexutil.Uint64(head.GasUsed),
 		"timestamp":        (*hexutil.Big)(head.Time),
 		"transactionsRoot": head.TxHash,
+		"dposContext":      head.DposContext.Root(),
 		"receiptsRoot":     head.ReceiptHash,
 		"epochRoot":        head.DposContext.EpochHash,
 		"delegateRoot":     head.DposContext.DelegateHash,

@@ -314,46 +314,6 @@ func (c *DPOS) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 			return errInvalidDifficulty
 		}
 	}*/
-	if number != 0 {
-		var parent *types.Header
-		if len(parents) > 0 {
-			parent = parents[len(parents)-1]
-		} else {
-			parent = chain.GetHeader(header.ParentHash, number-1)
-		}
-
-		// Retrieve the snapshot needed to verify this header and cache it
-		epoch, err := c.epochContext(chain, number-1, header.ParentHash, parent)
-		if err != nil {
-			return err
-		}
-		// Resolve the authorization key and check against signers
-		signer, err := ecrecover(header, c.signatures)
-		if err != nil {
-			return err
-		}
-		if _, ok := epoch.Signers[signer]; !ok {
-			return errUnauthorized
-		}
-		for seen, recent := range epoch.Recents {
-			if recent == signer {
-				// Signer is among recents, only fail if the current block doesn't shift it out
-				if limit := uint64(len(epoch.Signers)/2 + 1); seen > number-limit {
-					return errUnauthorized
-				}
-			}
-		}
-
-		if bytes.Compare(signer.Bytes(), header.Validator.Bytes()) != 0 {
-			return ErrMismatchSignerAndValidator
-		}
-
-		expected := CalcDifficulty(epoch, signer, parent)
-
-		if expected.Cmp(header.Difficulty) != 0 {
-			return errInvalidDifficulty
-		}
-	}
 
 	// If all checks passed, validate any special fields for hard forks
 	if err := misc.VerifyForkHashes(chain.Config(), header, false); err != nil {
@@ -388,7 +348,7 @@ func (c *DPOS) verifyCascadingFields(chain consensus.ChainReader, header *types.
 	}
 
 	// All basic checks passed, verify the seal and return
-	return c.verifySeal(chain, header, parents)
+	return nil
 }
 
 // snapshot retrieves the authorization snapshot at a given point in time.
@@ -416,6 +376,7 @@ func (c *DPOS) epochContext(chain consensus.ChainReader, number uint64, hash com
 	if curHeader == nil {
 		return nil, ErrNilBlockHeader
 	}
+
 	for curHeader.Number.Uint64() > 0 && len(epoch.Recents) <= (len(epoch.Signers)/2+1) {
 
 		epoch.Recents[curHeader.Number.Uint64()] = curHeader.Validator
@@ -499,6 +460,12 @@ func (c *DPOS) verifySeal(chain consensus.ChainReader, header *types.Header, par
 	if !inturn && header.Difficulty.Cmp(diffNoTurn) != 0 {
 		return errInvalidDifficulty
 	}*/
+
+	expected := CalcDifficulty(epoch, signer, parent)
+
+	if expected.Cmp(header.Difficulty) != 0 {
+		return errInvalidDifficulty
+	}
 
 	// Ensure that we have a valid difficulty for the block
 	if header.Difficulty.Sign() <= 0 {
@@ -588,7 +555,7 @@ func (c *DPOS) JudgeTx(chain consensus.ChainReader, header *types.Header, tx *ty
 
 // Finalize implements consensus.Engine, ensuring no uncles are set, nor block
 // rewards given, and returns the final block.
-func (c *DPOS) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+func (c *DPOS) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt, dposContext *types.DposContext) (*types.Block, error) {
 	// No block rewards in DPOS, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)
@@ -598,8 +565,8 @@ func (c *DPOS) Finalize(chain consensus.ChainReader, header *types.Header, state
 	if parent == nil {
 		return nil, consensus.ErrUnknownAncestor
 	}
-	// get current block epochcontext
-	epoch, err := c.epochContext(chain, number-1, header.ParentHash, parent)
+
+	epoch, err := newEpochContext(number-1, header.ParentHash, dposContext)
 	if err != nil {
 		return nil, err
 	}

@@ -189,7 +189,11 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			//dpos.AccumulateRewards(config, statedb, h, b.uncles)
 			b.header.DposContext = parent.Header().DposContext
 
-			block, _ := b.engine.Finalize(b.chainReader, b.header, statedb, b.txs, b.uncles, b.receipts)
+			dposContext, err := types.NewDposContextFromProto(blockchain.db, parent.Header().DposContext)
+			if err != nil {
+				return nil, nil
+			}
+			block, _ := b.engine.Finalize(b.chainReader, b.header, statedb, b.txs, b.uncles, b.receipts, dposContext)
 			// Write state changes to db
 			root, err := statedb.Commit(config.IsEIP158(b.header.Number))
 			if err != nil {
