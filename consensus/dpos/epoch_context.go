@@ -29,9 +29,10 @@ type EpochContext struct {
 // newEpochContext creates a new EpochContext with the specified startup parameters. This
 // method does not initialize the set of recent signers, so only ever use if for
 // the genesis block.
-func newEpochContext(number uint64, hash common.Hash, dposContext *types.DposContext) (epoch *EpochContext, err error) {
+func newEpochContext(number uint64, hash common.Hash, dposContext *types.DposContext, state *state.StateDB) (epoch *EpochContext, err error) {
 	epoch = &EpochContext{
 		DposContext: dposContext,
+		statedb:     state,
 		Number:      number,
 		Hash:        hash,
 		Signers:     make(map[common.Address]struct{}),

@@ -35,8 +35,7 @@ const (
 	wiggleTime = 500 * time.Millisecond // Random delay (per signer) to allow concurrent signers
 
 	maxValidatorSize = 5
-	safeSize         = maxValidatorSize*2/3 + 1
-	consensusSize    = maxValidatorSize*2/3 + 1
+	safeSize         = 1
 )
 
 // Delegated-Proof-of-Stake protocol constants.
@@ -375,7 +374,7 @@ func (c *DPOS) epochContext(chain consensus.ChainReader, number uint64, hash com
 		return nil, err
 	}
 
-	epoch, err = newEpochContext(number, hash, dposContext)
+	epoch, err = newEpochContext(number, hash, dposContext, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -575,7 +574,7 @@ func (c *DPOS) Finalize(chain consensus.ChainReader, header *types.Header, state
 		return nil, consensus.ErrUnknownAncestor
 	}
 
-	epoch, err := newEpochContext(number-1, header.ParentHash, dposContext)
+	epoch, err := newEpochContext(number-1, header.ParentHash, dposContext, state)
 	if err != nil {
 		return nil, err
 	}
