@@ -55,7 +55,7 @@ func (n *BlockNonce) UnmarshalText(input []byte) error {
 type Header struct {
 	ParentHash  common.Hash       `json:"parentHash"       gencodec:"required"`
 	UncleHash   common.Hash       `json:"sha3Uncles"       gencodec:"required"`
-	Validator   common.Address    `json:"validator"        gencodec:"required"`
+	Signature   [65]byte          `json:"signature"        gencodec:"required"`
 	Coinbase    common.Address    `json:"miner"            gencodec:"required"`
 	Root        common.Hash       `json:"stateRoot"        gencodec:"required"`
 	TxHash      common.Hash       `json:"transactionsRoot" gencodec:"required"`
@@ -102,7 +102,7 @@ func (h *Header) HashNoNonce() common.Hash {
 	return rlpHash([]interface{}{
 		h.ParentHash,
 		h.UncleHash,
-		h.Validator,
+		h.Signature,
 		h.Coinbase,
 		h.Root,
 		h.TxHash,
@@ -312,18 +312,18 @@ func (b *Block) GasUsed() uint64      { return b.header.GasUsed }
 func (b *Block) Difficulty() *big.Int { return new(big.Int).Set(b.header.Difficulty) }
 func (b *Block) Time() *big.Int       { return new(big.Int).Set(b.header.Time) }
 
-func (b *Block) NumberU64() uint64         { return b.header.Number.Uint64() }
-func (b *Block) MixDigest() common.Hash    { return b.header.MixDigest }
-func (b *Block) Nonce() uint64             { return binary.BigEndian.Uint64(b.header.Nonce[:]) }
-func (b *Block) Bloom() Bloom              { return b.header.Bloom }
-func (b *Block) Validator() common.Address { return b.header.Validator }
-func (b *Block) Coinbase() common.Address  { return b.header.Coinbase }
-func (b *Block) Root() common.Hash         { return b.header.Root }
-func (b *Block) ParentHash() common.Hash   { return b.header.ParentHash }
-func (b *Block) TxHash() common.Hash       { return b.header.TxHash }
-func (b *Block) ReceiptHash() common.Hash  { return b.header.ReceiptHash }
-func (b *Block) UncleHash() common.Hash    { return b.header.UncleHash }
-func (b *Block) Extra() []byte             { return common.CopyBytes(b.header.Extra) }
+func (b *Block) NumberU64() uint64        { return b.header.Number.Uint64() }
+func (b *Block) MixDigest() common.Hash   { return b.header.MixDigest }
+func (b *Block) Nonce() uint64            { return binary.BigEndian.Uint64(b.header.Nonce[:]) }
+func (b *Block) Bloom() Bloom             { return b.header.Bloom }
+func (b *Block) Signature() [65]byte      { return b.header.Signature }
+func (b *Block) Coinbase() common.Address { return b.header.Coinbase }
+func (b *Block) Root() common.Hash        { return b.header.Root }
+func (b *Block) ParentHash() common.Hash  { return b.header.ParentHash }
+func (b *Block) TxHash() common.Hash      { return b.header.TxHash }
+func (b *Block) ReceiptHash() common.Hash { return b.header.ReceiptHash }
+func (b *Block) UncleHash() common.Hash   { return b.header.UncleHash }
+func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Extra) }
 
 func (b *Block) Header() *Header { return CopyHeader(b.header) }
 

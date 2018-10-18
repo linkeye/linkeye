@@ -146,7 +146,6 @@ func sigHash(header *types.Header) (hash common.Hash) {
 	rlp.Encode(hasher, []interface{}{
 		header.ParentHash,
 		header.UncleHash,
-		header.Validator,
 		header.Coinbase,
 		header.Root,
 		header.TxHash,
@@ -157,7 +156,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 		header.GasLimit,
 		header.GasUsed,
 		header.Time,
-		header.Extra[:len(header.Extra)-65], // Yes, this will panic if extra is too short
+		header.Extra,
 		header.MixDigest,
 		header.Nonce,
 		header.DposContext.Root(),
@@ -173,11 +172,8 @@ func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, er
 	if address, known := sigcache.Get(hash); known {
 		return address.(common.Address), nil
 	}
-	// Retrieve the signature from the header extra-data
-	if len(header.Extra) < extraSeal {
-		return common.Address{}, errMissingSignature
-	}
-	signature := header.Extra[len(header.Extra)-extraSeal:]
+
+	signature := header.Signature[0:]
 
 	// Recover the public key and the Linkeye address
 	pubkey, err := crypto.Ecrecover(sigHash(header).Bytes(), signature)
@@ -289,9 +285,9 @@ func (c *DPOS) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 	if len(header.Extra) < extraVanity {
 		return errMissingVanity
 	}
-	if len(header.Extra) < extraVanity+extraSeal {
+	/*if len(header.Extra) < extraVanity+extraSeal {
 		return errMissingSignature
-	}
+	}*/
 	// Ensure that the extra-data contains a signer list on checkpoint, but none otherwise
 	/*signersBytes := len(header.Extra) - extraVanity - extraSeal
 	if !checkpoint && signersBytes != 0 {
@@ -387,7 +383,7 @@ func (c *DPOS) epochContext(chain consensus.ChainReader, number uint64, hash com
 
 	for curHeader.Number.Uint64() > 0 && len(epoch.Recents) <= (len(epoch.Signers)/2+1) {
 
-		epoch.Recents[curHeader.Number.Uint64()] = curHeader.Validator
+		epoch.Recents[curHeader.Number.Uint64()] = curHeader.Coinbase
 
 		curHeader = chain.GetHeaderByHash(curHeader.ParentHash)
 		if curHeader == nil {
@@ -515,9 +511,9 @@ func (c *DPOS) Prepare(chain consensus.ChainReader, header *types.Header) error 
 	if len(header.Extra) < extraVanity {
 		header.Extra = append(header.Extra, bytes.Repeat([]byte{0x00}, extraVanity-len(header.Extra))...)
 	}
-	header.Extra = header.Extra[:extraVanity]
+	/*header.Extra = header.Extra[:extraVanity]
 
-	header.Extra = append(header.Extra, make([]byte, extraSeal)...)
+	header.Extra = append(header.Extra, make([]byte, extraSeal)...)*/
 
 	// Mix digest is reserved for now, set to empty
 	header.MixDigest = common.Hash{}
@@ -589,7 +585,7 @@ func (c *DPOS) Finalize(chain consensus.ChainReader, header *types.Header, state
 	}
 
 	//update mint count trie
-	epoch.updateMintCnt(header.Validator)
+	epoch.updateMintCnt(header.Coinbase)
 
 	header.DposContext = epoch.DposContext.ToProto()
 
@@ -692,7 +688,7 @@ func (c *DPOS) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan
 	if err != nil {
 		return nil, err
 	}
-	copy(header.Extra[len(header.Extra)-extraSeal:], sighash)
+	copy((&header.Signature)[:], sighash)
 
 	return block.WithSeal(header), nil
 }
