@@ -268,24 +268,24 @@ func (c *DPOS) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 	if header.Number == nil {
 		return errUnknownBlock
 	}
-	number := header.Number.Uint64()
+	//number := header.Number.Uint64()
 
 	// Don't waste time checking blocks from the future
 	if header.Time.Cmp(big.NewInt(time.Now().Unix())) > 0 {
 		return consensus.ErrFutureBlock
 	}
 	// Checkpoint blocks need to enforce zero beneficiary
-	checkpoint := (number % c.config.Epoch) == 0
+	/*checkpoint := (number % c.config.Epoch) == 0
 	if checkpoint && header.Coinbase != (common.Address{}) {
 		return errInvalidCheckpointBeneficiary
-	}
+	}*/
 	// Nonces must be 0x00..0 or 0xff..f, zeroes enforced on checkpoints
 	if !bytes.Equal(header.Nonce[:], nonceAuthVote) && !bytes.Equal(header.Nonce[:], nonceDropVote) {
 		return errInvalidVote
 	}
-	if checkpoint && !bytes.Equal(header.Nonce[:], nonceDropVote) {
+	/*if checkpoint && !bytes.Equal(header.Nonce[:], nonceDropVote) {
 		return errInvalidCheckpointVote
-	}
+	}*/
 	// Check that the extra-data contains both the vanity and signature
 	if len(header.Extra) < extraVanity {
 		return errMissingVanity
@@ -294,13 +294,13 @@ func (c *DPOS) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 		return errMissingSignature
 	}
 	// Ensure that the extra-data contains a signer list on checkpoint, but none otherwise
-	signersBytes := len(header.Extra) - extraVanity - extraSeal
+	/*signersBytes := len(header.Extra) - extraVanity - extraSeal
 	if !checkpoint && signersBytes != 0 {
 		return errExtraSigners
 	}
 	if checkpoint && signersBytes%common.AddressLength != 0 {
 		return errInvalidCheckpointSigners
-	}
+	}*/
 	// Ensure that the mix digest is zero as we don't have fork protection currently
 	if header.MixDigest != (common.Hash{}) {
 		return errInvalidMixDigest
@@ -315,6 +315,14 @@ func (c *DPOS) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 			return errInvalidDifficulty
 		}
 	}*/
+	signer, err := ecrecover(header, c.signatures)
+	if err != nil {
+		return err
+	}
+	//check validator
+	if bytes.Compare(signer.Bytes(), header.Coinbase.Bytes()) != 0 {
+		return ErrMismatchSignerAndValidator
+	}
 
 	// If all checks passed, validate any special fields for hard forks
 	if err := misc.VerifyForkHashes(chain.Config(), header, false); err != nil {
@@ -499,7 +507,7 @@ func (c *DPOS) Prepare(chain consensus.ChainReader, header *types.Header) error 
 	}
 
 	// set Validator
-	header.Validator = c.signer
+	header.Coinbase = c.signer
 
 	// Set the correct difficulty
 	header.Difficulty = CalcDifficulty(epoch, c.signer, parent)
