@@ -365,3 +365,21 @@ func (dc *DposContext) SetValidators(validators []common.Address) error {
 	dc.epochTrie.Update(key, validatorsRLP)
 	return nil
 }
+
+func (dc *DposContext) GetCandidates() ([]common.Address, error) {
+	candidates := make([]common.Address, 0)
+
+	candidateTrie := dc.CandidateTrie()
+	iterCandidate := trie.NewIterator(candidateTrie.NodeIterator(nil))
+	existCandidate := iterCandidate.Next()
+	if !existCandidate {
+		return candidates, nil
+	}
+	for existCandidate {
+		candidate := iterCandidate.Value
+		candidateAddr := common.BytesToAddress(candidate)
+		candidates = append(candidates, candidateAddr)
+		existCandidate = iterCandidate.Next()
+	}
+	return candidates, nil
+}

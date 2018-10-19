@@ -53,42 +53,16 @@ web3._extend({
 	property: 'dpos',
 	methods: [
 		new web3._extend.Method({
-			name: 'getSnapshot',
-			call: 'dpos_getSnapshot',
+			name: 'getValidators',
+			call: 'dpos_getValidators',
 			params: 1,
-			inputFormatter: [null]
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
 		}),
 		new web3._extend.Method({
-			name: 'getSnapshotAtHash',
-			call: 'dpos_getSnapshotAtHash',
-			params: 1
-		}),
-		new web3._extend.Method({
-			name: 'getSigners',
-			call: 'dpos_getSigners',
+			name: 'getCandidates',
+			call: 'dpos_getCandidates',
 			params: 1,
-			inputFormatter: [null]
-		}),
-		new web3._extend.Method({
-			name: 'getSignersAtHash',
-			call: 'dpos_getSignersAtHash',
-			params: 1
-		}),
-		new web3._extend.Method({
-			name: 'propose',
-			call: 'dpos_propose',
-			params: 2
-		}),
-		new web3._extend.Method({
-			name: 'discard',
-			call: 'dpos_discard',
-			params: 1
-		}),
-	],
-	properties: [
-		new web3._extend.Property({
-			name: 'proposals',
-			getter: 'dpos_proposals'
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
 		}),
 	]
 });

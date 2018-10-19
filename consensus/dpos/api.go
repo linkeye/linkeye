@@ -36,3 +36,26 @@ func (api *API) GetValidators(number *rpc.BlockNumber) ([]common.Address, error)
 	}
 	return validators, nil
 }
+
+// GetCandidates retrieves the list of the candidates at specified block
+func (api *API) GetCandidates(number *rpc.BlockNumber) ([]common.Address, error) {
+	var header *types.Header
+	if number == nil || *number == rpc.LatestBlockNumber {
+		header = api.chain.CurrentHeader()
+	} else {
+		header = api.chain.GetHeaderByNumber(uint64(number.Int64()))
+	}
+	if header == nil {
+		return nil, errUnknownBlock
+	}
+
+	dposContext, err := types.NewDposContextFromProto(api.dpos.db, header.DposContext)
+	if err != nil {
+		return nil, err
+	}
+	candidates, err := dposContext.GetCandidates()
+	if err != nil {
+		return nil, err
+	}
+	return candidates, nil
+}
