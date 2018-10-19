@@ -356,7 +356,7 @@ func (c *DPOS) verifyCascadingFields(chain consensus.ChainReader, header *types.
 }
 
 // snapshot retrieves the authorization snapshot at a given point in time.
-func (c *DPOS) epochContext(chain consensus.ChainReader, number uint64, hash common.Hash, parent *types.Header) (epoch *EpochContext, err error) {
+func (c *DPOS) epochContext(chain consensus.ChainReader, number uint64, hash common.Hash, header *types.Header) (epoch *EpochContext, err error) {
 	// Search for a snapshot in memory or on disk for checkpoints
 
 	// If an in-memory snapshot was found, use that
@@ -365,7 +365,7 @@ func (c *DPOS) epochContext(chain consensus.ChainReader, number uint64, hash com
 		return epoch, nil
 	}
 
-	dposContext, err := types.NewDposContextFromProto(c.db, parent.DposContext)
+	dposContext, err := types.NewDposContextFromProto(c.db, header.DposContext)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +381,7 @@ func (c *DPOS) epochContext(chain consensus.ChainReader, number uint64, hash com
 		return nil, ErrNilBlockHeader
 	}
 
-	for curHeader.Number.Uint64() > 0 && len(epoch.Recents) <= (len(epoch.Signers)/2+1) {
+	for curHeader.Number.Uint64() > 0 && len(epoch.Recents) < (len(epoch.Signers)/2+1) && (curHeader.Number.Uint64()%c.config.Epoch) != 0 {
 
 		epoch.Recents[curHeader.Number.Uint64()] = curHeader.Coinbase
 
@@ -644,7 +644,7 @@ func (c *DPOS) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan
 		if recent == signer {
 			// Signer is among recents, only wait if the current block doesn't shift it out
 			if limit := uint64(len(epoch.Signers)/2 + 1); number < limit || seen > number-limit {
-				log.Info("Signed recently,but < signer/2 + 1")
+				log.Info("Signed recently,but < signer/2 + 1", "len", len(epoch.Signers))
 				var period int64
 				period = int64(c.config.Period)
 				period = period * int64(len(epoch.Signers)/2+1)
