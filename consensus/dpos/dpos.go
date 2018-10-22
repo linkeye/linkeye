@@ -38,6 +38,12 @@ const (
 	safeSize         = 1
 )
 
+var (
+	MinDelegateBalance  = big.NewFloat(10 * 1e18)  //10LET
+	MinCandidateBalance = big.NewFloat(100 * 1e18) //100LET
+	UnlockInterval      = big.NewInt(10)           //10 Block
+)
+
 // Delegated-Proof-of-Stake protocol constants.
 var (
 	//epochLength = uint64(30000) // Default number of blocks after which to checkpoint and reset the pending votes

@@ -4,13 +4,30 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/linkeye/linkeye/common"
 	"github.com/linkeye/linkeye/crypto/sha3"
 	"github.com/linkeye/linkeye/letdb"
+	"github.com/linkeye/linkeye/log"
 	"github.com/linkeye/linkeye/rlp"
 	"github.com/linkeye/linkeye/trie"
 )
+
+type CoinState uint8
+
+const (
+	LoginState CoinState = iota
+	LogoutState
+	WithdrawingState
+)
+
+// 候选人抵押结构体，包含候选人地址，币抵押状态（完全抵押，解押中，完全解押）
+type CandidateContext struct {
+	Addr        common.Address `json:"addr" gencodec:"required"`
+	State       CoinState      `json:"state" gencodec:"required"`
+	BlockNumber *big.Int       `json:"blocknumber" gencodec:"required"`
+}
 
 type DposContext struct {
 	epochTrie     *trie.Trie
@@ -366,8 +383,8 @@ func (dc *DposContext) SetValidators(validators []common.Address) error {
 	return nil
 }
 
-func (dc *DposContext) GetCandidates() ([]common.Address, error) {
-	candidates := make([]common.Address, 0)
+func (dc *DposContext) GetCandidates() ([]CandidateContext, error) {
+	candidates := make([]CandidateContext, 0)
 
 	candidateTrie := dc.CandidateTrie()
 	iterCandidate := trie.NewIterator(candidateTrie.NodeIterator(nil))
@@ -375,11 +392,36 @@ func (dc *DposContext) GetCandidates() ([]common.Address, error) {
 	if !existCandidate {
 		return candidates, nil
 	}
+
 	for existCandidate {
+		var cc CandidateContext
 		candidate := iterCandidate.Value
-		candidateAddr := common.BytesToAddress(candidate)
-		candidates = append(candidates, candidateAddr)
+		rlp.DecodeBytes(candidate, &cc)
+		candidates = append(candidates, cc)
 		existCandidate = iterCandidate.Next()
 	}
 	return candidates, nil
+}
+func (dc *DposContext) GetCandidateContext(candidateAddr common.Address) (CandidateContext, error) {
+	var cc CandidateContext
+	ccRLP := dc.candidateTrie.Get(candidateAddr.Bytes())
+	log.Info("GetCandidateContext:", "candidateAddr", candidateAddr.String(), "ccRLP", ccRLP)
+	if err := rlp.DecodeBytes(ccRLP, &cc); err != nil {
+		log.Error("failed to decode candidate context:", "error", err)
+		return cc, fmt.Errorf("failed to decode candidate context: %s", err)
+	}
+	return cc, nil
+}
+
+func (dc *DposContext) SetCandidateContext(cc CandidateContext) error {
+	log.Info("SetCandidateContext:", "cc", cc)
+	ccRLP, err := rlp.EncodeToBytes(cc)
+	log.Info("SetCandidateContext:", "key", cc.Addr.Bytes(), "ccRLP", ccRLP)
+	if err != nil {
+		log.Error("failed to encode candidate contexts to rlp bytes:", "error", err)
+		return fmt.Errorf("failed to encode candidate context to rlp bytes: %s", err)
+	}
+	dc.candidateTrie.Update(cc.Addr.Bytes(), ccRLP)
+
+	return nil
 }

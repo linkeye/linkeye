@@ -38,7 +38,7 @@ func (api *API) GetValidators(number *rpc.BlockNumber) ([]common.Address, error)
 }
 
 // GetCandidates retrieves the list of the candidates at specified block
-func (api *API) GetCandidates(number *rpc.BlockNumber) ([]common.Address, error) {
+func (api *API) GetCandidates(number *rpc.BlockNumber) ([]types.CandidateContext, error) {
 	var header *types.Header
 	if number == nil || *number == rpc.LatestBlockNumber {
 		header = api.chain.CurrentHeader()
@@ -58,4 +58,28 @@ func (api *API) GetCandidates(number *rpc.BlockNumber) ([]common.Address, error)
 		return nil, err
 	}
 	return candidates, nil
+}
+
+// GetCandidates retrieves the list of the candidates at specified block
+func (api *API) GetCandidate(addr common.Address, number *rpc.BlockNumber) (types.CandidateContext, error) {
+	var header *types.Header
+	var cc types.CandidateContext
+	if number == nil || *number == rpc.LatestBlockNumber {
+		header = api.chain.CurrentHeader()
+	} else {
+		header = api.chain.GetHeaderByNumber(uint64(number.Int64()))
+	}
+	if header == nil {
+		return cc, errUnknownBlock
+	}
+
+	dposContext, err := types.NewDposContextFromProto(api.dpos.db, header.DposContext)
+	if err != nil {
+		return cc, err
+	}
+	candidatecontext, err := dposContext.GetCandidateContext(addr)
+	if err != nil {
+		return cc, err
+	}
+	return candidatecontext, nil
 }

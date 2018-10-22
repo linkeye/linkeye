@@ -22,6 +22,7 @@ const (
 	Binary TxType = iota
 	LoginCandidate
 	LogoutCandidate
+	WithdrawCandidate //after logout, then withdraw coin
 	Delegate
 	UnDelegate
 )
@@ -137,7 +138,7 @@ func (tx *Transaction) Validate() error {
 		if tx.Value().Uint64() != 0 {
 			return errors.New("transaction value should be 0")
 		}
-		if tx.To() == nil && tx.Type() != LoginCandidate && tx.Type() != LogoutCandidate {
+		if tx.To() == nil && tx.Type() != LoginCandidate && tx.Type() != LogoutCandidate && tx.Type() != WithdrawCandidate {
 			return errors.New("receipient was required")
 		}
 		if tx.Data() != nil {

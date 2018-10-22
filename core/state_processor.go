@@ -1,13 +1,18 @@
 package core
 
 import (
+	"errors"
+	"math/big"
+
 	"github.com/linkeye/linkeye/common"
 	"github.com/linkeye/linkeye/consensus"
+	"github.com/linkeye/linkeye/consensus/dpos"
 	"github.com/linkeye/linkeye/consensus/misc"
 	"github.com/linkeye/linkeye/core/state"
 	"github.com/linkeye/linkeye/core/types"
 	"github.com/linkeye/linkeye/core/vm"
 	"github.com/linkeye/linkeye/crypto"
+	"github.com/linkeye/linkeye/log"
 	"github.com/linkeye/linkeye/params"
 )
 
@@ -90,7 +95,8 @@ func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext
 		return nil, 0, err
 	}
 	if msg.Type() != types.Binary {
-		if err = applyDposMessage(dposContext, msg); err != nil {
+		if err = applyDposMessage(dposContext, msg, statedb, header); err != nil {
+
 			return nil, 0, err
 		}
 	}
@@ -120,12 +126,69 @@ func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext
 	return receipt, gas, err
 }
 
-func applyDposMessage(dposContext *types.DposContext, msg types.Message) error {
+func applyDposMessage(dposContext *types.DposContext, msg types.Message, statedb *state.StateDB, header *types.Header) error {
 	switch msg.Type() {
 	case types.LoginCandidate:
-		dposContext.BecomeCandidate(msg.From())
+		log.Info("applyDposMessageByWorldState:", "LoginCandidate, from", msg.From())
+		bal := statedb.GetBalance(msg.From())
+		f := new(big.Float).SetInt(bal)
+		if f.Cmp(dpos.MinCandidateBalance) < 0 {
+			log.Error("insufficient balance to become candidate")
+			return errors.New("insufficient balance to become candidate")
+		}
+		minCandidate := new(big.Int)
+		dpos.MinCandidateBalance.Int(minCandidate)
+		log.Info("LoginCandidate", "minCandidate", minCandidate)
+		statedb.SubBalance(msg.From(), minCandidate)
+		cc := &types.CandidateContext{
+			Addr:        msg.From(),
+			State:       types.LoginState, //扣币抵押
+			BlockNumber: header.Number,    //记录成为候选人时的区块高度
+		}
+		dposContext.SetCandidateContext(*cc)
 	case types.LogoutCandidate:
-		dposContext.KickoutCandidate(msg.From())
+		log.Info("LogoutCandidate:")
+		if cc, err := dposContext.GetCandidateContext(msg.From()); err != nil {
+			log.Error("failed to GetCandidateContext:", "from", msg.From())
+			return errors.New("failed to GetCandidateContext " + msg.From().String())
+		} else {
+			//只在币处于login的状态下，才允许调用logout
+			if cc.State == types.LoginState {
+				//更新候选人币的对应状态，更新为解锁状态中,记录开始解锁时的区块高度
+				cc := &types.CandidateContext{
+					Addr:        msg.From(),
+					State:       types.LogoutState,
+					BlockNumber: header.Number,
+				}
+				dposContext.SetCandidateContext(*cc)
+			} else {
+				return errors.New("please first call login, " + msg.From().String())
+			}
+		}
+	case types.WithdrawCandidate:
+		if cc, err := dposContext.GetCandidateContext(msg.From()); err != nil {
+			log.Error("failed to GetCandidateContext:", "from", msg.From())
+			return errors.New("failed to GetCandidateContext " + msg.From().String())
+		} else {
+			//只在币处于logout的状态下，才允许withdraw
+			if cc.State == types.LogoutState {
+				log.Info("compare blocktime:")
+				//解锁时间已到
+				if new(big.Int).Add(cc.BlockNumber, dpos.UnlockInterval).Cmp(header.Number) < 0 {
+					if err := dposContext.KickoutCandidate(msg.From()); err != nil {
+						return err
+					}
+					minCandidate := new(big.Int)
+					minCandidate, _ = dpos.MinCandidateBalance.Int(minCandidate)
+					log.Info("add balance:", "from", msg.From(), "minCandidate", minCandidate)
+					statedb.AddBalance(msg.From(), minCandidate) //退出成为候选人时，退回抵押的币
+				} else {
+					return errors.New("please wait, unlock time isn't arrive, " + msg.From().String())
+				}
+			} else {
+				return errors.New("please call logout first, " + msg.From().String())
+			}
+		}
 	case types.Delegate:
 		dposContext.Delegate(msg.From(), *(msg.To()))
 	case types.UnDelegate:
