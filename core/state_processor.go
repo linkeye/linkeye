@@ -1,7 +1,7 @@
 package core
 
 import (
-	"errors"
+	"bytes"
 	"math/big"
 
 	"github.com/linkeye/linkeye/common"
@@ -92,11 +92,12 @@ func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext
 	// Apply the transaction to the current state (included in the env)
 	_, gas, failed, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
+		log.Error("ApplyTransaction:", "err", err)
 		return nil, 0, err
 	}
 	if msg.Type() != types.Binary {
 		if err = applyDposMessage(dposContext, msg, statedb, header); err != nil {
-
+			log.Error("applyDposMsg:", "err", err)
 			return nil, 0, err
 		}
 	}
@@ -126,34 +127,68 @@ func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext
 	return receipt, gas, err
 }
 
+func addDposLog(statedb *state.StateDB, addr common.Address, topics, data string, header *types.Header) {
+	hash := crypto.Keccak256Hash([]byte(topics))
+	statedb.AddLog(&types.Log{
+		Address: addr,
+		Topics: []common.Hash{hash},
+		Data: []byte(data),
+		BlockNumber: header.Number.Uint64(),
+	})
+}
+
 func applyDposMessage(dposContext *types.DposContext, msg types.Message, statedb *state.StateDB, header *types.Header) error {
 	switch msg.Type() {
 	case types.LoginCandidate:
-		log.Info("applyDposMessageByWorldState:", "LoginCandidate, from", msg.From())
-		bal := statedb.GetBalance(msg.From())
-		f := new(big.Float).SetInt(bal)
-		if f.Cmp(dpos.MinCandidateBalance) < 0 {
-			log.Error("insufficient balance to become candidate")
-			return errors.New("insufficient balance to become candidate")
+		log.Info("LoginCandidate:")
+		if cc, err := dposContext.GetCandidateContext(msg.From()); err != nil {
+			log.Error("failed to GetCandidateContext:", "from", msg.From())
+			addDposLog(statedb, msg.From(), "LoginCandidate", "failed to GetCandidateContext" + msg.From().String(), header)
+
+			return nil
+		} else {
+			// when state is logout, then login, change state to login
+			if cc.State == types.LogoutState {
+				cc := &types.CandidateContext{
+					Addr:        msg.From(),
+					State:       types.LoginState,
+					BlockNumber: header.Number,
+				}
+				dposContext.SetCandidateContext(*cc)
+			} else if cc.State == types.LoginState && bytes.Compare(cc.Addr.Bytes(), msg.From().Bytes()) == 0 {
+				addDposLog(statedb, msg.From(), "RepeatLoginCandidate", "You are already in login state before, " + msg.From().String(), header)
+				return nil
+			} else {
+				// first login
+				log.Info("applyDposMessage:", "LoginCandidate, from", msg.From())
+				bal := statedb.GetBalance(msg.From())
+				f := new(big.Float).SetInt(bal)
+				if f.Cmp(dpos.MinCandidateBalance) < 0 {
+					log.Error("insufficient balance to become candidate")
+					addDposLog(statedb, msg.From(), "InsufficientBalance", "insufficient balance to become candidate, " + msg.From().String(), header)
+					return nil
+				}
+				minCandidate := new(big.Int)
+				dpos.MinCandidateBalance.Int(minCandidate)
+				log.Info("LoginCandidate", "minCandidate", minCandidate)
+				statedb.SubBalance(msg.From(), minCandidate)
+				cc := &types.CandidateContext{
+					Addr:        msg.From(),
+					State:       types.LoginState, //扣币抵押
+					BlockNumber: header.Number,    //记录成为候选人时的区块高度
+				}
+				dposContext.SetCandidateContext(*cc)
+			}
 		}
-		minCandidate := new(big.Int)
-		dpos.MinCandidateBalance.Int(minCandidate)
-		log.Info("LoginCandidate", "minCandidate", minCandidate)
-		statedb.SubBalance(msg.From(), minCandidate)
-		cc := &types.CandidateContext{
-			Addr:        msg.From(),
-			State:       types.LoginState, //扣币抵押
-			BlockNumber: header.Number,    //记录成为候选人时的区块高度
-		}
-		dposContext.SetCandidateContext(*cc)
 	case types.LogoutCandidate:
 		log.Info("LogoutCandidate:")
 		if cc, err := dposContext.GetCandidateContext(msg.From()); err != nil {
 			log.Error("failed to GetCandidateContext:", "from", msg.From())
-			return errors.New("failed to GetCandidateContext " + msg.From().String())
+			addDposLog(statedb, msg.From(), "LogoutCandidate", "failed to GetCandidateContext" + msg.From().String(), header)
+			return nil
 		} else {
 			//只在币处于login的状态下，才允许调用logout
-			if cc.State == types.LoginState {
+			if cc.State == types.LoginState && bytes.Compare(cc.Addr.Bytes(), msg.From().Bytes()) == 0 {
 				//更新候选人币的对应状态，更新为解锁状态中,记录开始解锁时的区块高度
 				cc := &types.CandidateContext{
 					Addr:        msg.From(),
@@ -161,14 +196,19 @@ func applyDposMessage(dposContext *types.DposContext, msg types.Message, statedb
 					BlockNumber: header.Number,
 				}
 				dposContext.SetCandidateContext(*cc)
+			} else if cc.State == types.LogoutState {
+				addDposLog(statedb, msg.From(), "RepeatLogoutCandidate", "You are already in logout state before, " + msg.From().String(), header)
+				return nil
 			} else {
-				return errors.New("please first call login, " + msg.From().String())
+				addDposLog(statedb, msg.From(), "NoLogin", "please first call login, " + msg.From().String(), header)
+				return nil
 			}
 		}
 	case types.WithdrawCandidate:
 		if cc, err := dposContext.GetCandidateContext(msg.From()); err != nil {
 			log.Error("failed to GetCandidateContext:", "from", msg.From())
-			return errors.New("failed to GetCandidateContext " + msg.From().String())
+			addDposLog(statedb, msg.From(), "WithdrawCandidate", "failed to GetCandidateContext" + msg.From().String(), header)
+			return nil
 		} else {
 			//只在币处于logout的状态下，才允许withdraw
 			if cc.State == types.LogoutState {
@@ -176,17 +216,20 @@ func applyDposMessage(dposContext *types.DposContext, msg types.Message, statedb
 				//解锁时间已到
 				if new(big.Int).Add(cc.BlockNumber, dpos.UnlockInterval).Cmp(header.Number) < 0 {
 					if err := dposContext.KickoutCandidate(msg.From()); err != nil {
-						return err
+						addDposLog(statedb, msg.From(), "KickoutCandidate", "failed to KickoutCandidate " + msg.From().String(), header)
+						return nil
 					}
 					minCandidate := new(big.Int)
 					minCandidate, _ = dpos.MinCandidateBalance.Int(minCandidate)
 					log.Info("add balance:", "from", msg.From(), "minCandidate", minCandidate)
 					statedb.AddBalance(msg.From(), minCandidate) //退出成为候选人时，退回抵押的币
 				} else {
-					return errors.New("please wait, unlock time isn't arrive, " + msg.From().String())
+					addDposLog(statedb, msg.From(), "Locking", "please wait, unlock time isn't arrive, " + msg.From().String(), header)
+					return nil
 				}
 			} else {
-				return errors.New("please call logout first, " + msg.From().String())
+				addDposLog(statedb, msg.From(), "NoLogout", "please first call logout, " + msg.From().String(), header)
+				return nil
 			}
 		}
 	case types.Delegate:
@@ -198,3 +241,4 @@ func applyDposMessage(dposContext *types.DposContext, msg types.Message, statedb
 	}
 	return nil
 }
+

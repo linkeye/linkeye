@@ -406,6 +406,9 @@ func (dc *DposContext) GetCandidateContext(candidateAddr common.Address) (Candid
 	var cc CandidateContext
 	ccRLP := dc.candidateTrie.Get(candidateAddr.Bytes())
 	log.Info("GetCandidateContext:", "candidateAddr", candidateAddr.String(), "ccRLP", ccRLP)
+	if len(ccRLP) == 0 {
+		return cc, nil
+	}
 	if err := rlp.DecodeBytes(ccRLP, &cc); err != nil {
 		log.Error("failed to decode candidate context:", "error", err)
 		return cc, fmt.Errorf("failed to decode candidate context: %s", err)
