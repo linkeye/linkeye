@@ -12,6 +12,7 @@ import (
 	"github.com/linkeye/linkeye/core/state"
 	"github.com/linkeye/linkeye/core/types"
 	"github.com/linkeye/linkeye/log"
+	"github.com/linkeye/linkeye/rlp"
 	"github.com/linkeye/linkeye/trie"
 )
 
@@ -65,8 +66,10 @@ func (ec *EpochContext) countVotes() (votes map[common.Address]*big.Int, err err
 		return votes, errors.New("no candidates")
 	}
 	for existCandidate {
+		var cc types.CandidateContext
 		candidate := iterCandidate.Value
-		candidateAddr := common.BytesToAddress(candidate)
+		rlp.DecodeBytes(candidate, &cc)
+		candidateAddr := common.BytesToAddress(cc.Addr.Bytes())
 		delegateIterator := trie.NewIterator(delegateTrie.PrefixIterator(candidate))
 		existDelegator := delegateIterator.Next()
 		if !existDelegator {

@@ -403,7 +403,11 @@ func initGenesisDposContext(g *Genesis, db letdb.Database) *types.DposContext {
 		dc.SetValidators(g.Config.DPOS.Validators)
 		for _, validator := range g.Config.DPOS.Validators {
 			dc.DelegateTrie().TryUpdate(append(validator.Bytes(), validator.Bytes()...), validator.Bytes())
-			dc.CandidateTrie().TryUpdate(validator.Bytes(), validator.Bytes())
+			dc.SetCandidateContext(types.CandidateContext{
+				Addr:        validator,
+				State:       types.LoginState,
+				BlockNumber: big.NewInt(0),
+			})
 		}
 	}
 	return dc
