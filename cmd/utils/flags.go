@@ -116,11 +116,15 @@ var (
 	}
 	TestnetFlag = cli.BoolFlag{
 		Name:  "testnet",
-		Usage: "Ropsten network: pre-configured proof-of-authority test network",
+		Usage: "DPOS network: pre-configured Delegated-Proof-of-Stake test network",
+	}
+	POAFlag = cli.BoolFlag{
+		Name:  "poa",
+		Usage: "POA network: pre-configured proof-of-authority network",
 	}
 	BFTFlag = cli.BoolFlag{
 		Name:  "bft",
-		Usage: "BFT network: pre-configured bft bft test network",
+		Usage: "BFT network: pre-configured bft network",
 	}
 	DeveloperFlag = cli.BoolFlag{
 		Name:  "dev",
@@ -501,6 +505,9 @@ func MakeDataDir(ctx *cli.Context) string {
 		if ctx.GlobalBool(BFTFlag.Name) {
 			return filepath.Join(path, "bft")
 		}
+		if ctx.GlobalBool(POAFlag.Name) {
+			return filepath.Join(path, "poa")
+		}
 
 		return path
 	}
@@ -554,6 +561,8 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 		}
 	case ctx.GlobalBool(TestnetFlag.Name):
 		urls = params.TestnetBootnodes
+	case ctx.GlobalBool(POAFlag.Name):
+		urls = params.POABootnodes
 	case ctx.GlobalBool(BFTFlag.Name):
 		urls = params.BFTBootnodes
 	case cfg.BootstrapNodes != nil:
@@ -838,6 +847,8 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 		cfg.DataDir = "" // unless explicitly requested, use memory databases
 	case ctx.GlobalBool(TestnetFlag.Name):
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "testnet")
+	case ctx.GlobalBool(POAFlag.Name):
+		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "poa")
 	case ctx.GlobalBool(BFTFlag.Name):
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "bft")
 	}
@@ -944,7 +955,7 @@ func checkExclusive(ctx *cli.Context, args ...interface{}) {
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *let.Config) {
 	// Avoid conflicting network flags
-	checkExclusive(ctx, DeveloperFlag, TestnetFlag, BFTFlag)
+	checkExclusive(ctx, DeveloperFlag, TestnetFlag, POAFlag, BFTFlag)
 	checkExclusive(ctx, FastSyncFlag, LightModeFlag, SyncModeFlag)
 	checkExclusive(ctx, LightServFlag, LightModeFlag)
 	checkExclusive(ctx, LightServFlag, SyncModeFlag, "light")
@@ -1011,6 +1022,11 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *let.Config) {
 			cfg.NetworkId = 8053
 		}
 		cfg.Genesis = core.DefaultTestnetGenesisBlock()
+	case ctx.GlobalBool(POAFlag.Name):
+		if !ctx.GlobalIsSet(NetworkIdFlag.Name) {
+			cfg.NetworkId = 5
+		}
+		cfg.Genesis = core.DefaultPOAGenesisBlock()
 	case ctx.GlobalBool(BFTFlag.Name):
 		if !ctx.GlobalIsSet(NetworkIdFlag.Name) {
 			cfg.NetworkId = 5
@@ -1127,6 +1143,8 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 	switch {
 	case ctx.GlobalBool(TestnetFlag.Name):
 		genesis = core.DefaultTestnetGenesisBlock()
+	case ctx.GlobalBool(POAFlag.Name):
+		genesis = core.DefaultPOAGenesisBlock()
 	case ctx.GlobalBool(BFTFlag.Name):
 		genesis = core.DefaultBFTGenesisBlock()
 	case ctx.GlobalBool(DeveloperFlag.Name):

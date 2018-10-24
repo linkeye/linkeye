@@ -55,6 +55,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.NoUSBFlag,
 			utils.NetworkIdFlag,
 			utils.TestnetFlag,
+			utils.POAFlag,
 			utils.BFTFlag,
 			utils.SyncModeFlag,
 			utils.GCModeFlag,

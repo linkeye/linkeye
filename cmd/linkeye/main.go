@@ -1,4 +1,3 @@
-
 // linkeye is the official command-line client for Linkeye.
 package main
 
@@ -85,6 +84,7 @@ var (
 		utils.DeveloperFlag,
 		utils.DeveloperPeriodFlag,
 		utils.TestnetFlag,
+		utils.POAFlag,
 		utils.BFTFlag,
 		utils.VMEnableDebugFlag,
 		utils.NetworkIdFlag,
