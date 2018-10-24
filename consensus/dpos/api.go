@@ -83,3 +83,25 @@ func (api *API) GetCandidate(addr common.Address, number *rpc.BlockNumber) (type
 	}
 	return candidatecontext, nil
 }
+
+func (api *API) GetSortableAddresses(number *rpc.BlockNumber) (types.SortableAddresses, error) {
+	var header *types.Header
+	if number == nil || *number == rpc.LatestBlockNumber {
+		header = api.chain.CurrentHeader()
+	} else {
+		header = api.chain.GetHeaderByNumber(uint64(number.Int64()))
+	}
+	if header == nil {
+		return nil, errUnknownBlock
+	}
+
+	dposContext, err := types.NewDposContextFromProto(api.dpos.db, header.DposContext)
+	if err != nil {
+		return nil, err
+	}
+	sa, err := dposContext.GetSortableAddresses()
+	if err != nil {
+		return nil, err
+	}
+	return sa, nil
+}

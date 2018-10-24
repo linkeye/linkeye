@@ -401,6 +401,11 @@ func initGenesisDposContext(g *Genesis, db letdb.Database) *types.DposContext {
 	}
 	if g.Config != nil && g.Config.DPOS != nil && g.Config.DPOS.Validators != nil {
 		dc.SetValidators(g.Config.DPOS.Validators)
+		var sa types.SortableAddresses
+		for _, v := range g.Config.DPOS.Validators {
+			sa = append(sa, &types.SortableAddress{v, big.NewInt(0)})
+		}
+		dc.SetSortableAddresses(sa)
 		for _, validator := range g.Config.DPOS.Validators {
 			dc.DelegateTrie().TryUpdate(append(validator.Bytes(), validator.Bytes()...), validator.Bytes())
 			dc.SetCandidateContext(types.CandidateContext{

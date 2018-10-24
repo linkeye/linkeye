@@ -29,6 +29,24 @@ type CandidateContext struct {
 	BlockNumber *big.Int       `json:"blocknumber" gencodec:"required"`
 }
 
+type SortableAddress struct {
+	Address common.Address `json:"addr" gencodec:"required"`
+	Weight  *big.Int       `json:"weight" gencodec:"required"`
+}
+type SortableAddresses []*SortableAddress
+
+func (p SortableAddresses) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p SortableAddresses) Len() int      { return len(p) }
+func (p SortableAddresses) Less(i, j int) bool {
+	if p[i].Weight.Cmp(p[j].Weight) < 0 {
+		return false
+	} else if p[i].Weight.Cmp(p[j].Weight) > 0 {
+		return true
+	} else {
+		return p[i].Address.String() < p[j].Address.String()
+	}
+}
+
 type DposContext struct {
 	epochTrie     *trie.Trie
 	delegateTrie  *trie.Trie
@@ -426,5 +444,25 @@ func (dc *DposContext) SetCandidateContext(cc CandidateContext) error {
 	}
 	dc.candidateTrie.Update(cc.Addr.Bytes(), ccRLP)
 
+	return nil
+}
+
+func (dc *DposContext) GetSortableAddresses() (SortableAddresses, error) {
+	var sa SortableAddresses
+	key := []byte("sortvalidator")
+	sortedvalidatorsRLP := dc.epochTrie.Get(key)
+	if err := rlp.DecodeBytes(sortedvalidatorsRLP, &sa); err != nil {
+		return nil, fmt.Errorf("failed to decode sortedvalidators: %s", err)
+	}
+	return sa, nil
+}
+
+func (dc *DposContext) SetSortableAddresses(sa SortableAddresses) error {
+	key := []byte("sortvalidator")
+	sortedvalidatorsRLP, err := rlp.EncodeToBytes(sa)
+	if err != nil {
+		return fmt.Errorf("failed to encode sortedvalidators to rlp bytes: %s", err)
+	}
+	dc.epochTrie.Update(key, sortedvalidatorsRLP)
 	return nil
 }

@@ -103,7 +103,7 @@ func (ec *EpochContext) kickoutValidator() error {
 		return errors.New("no validator could be kickout")
 	}
 
-	needKickoutValidators := sortableAddresses{}
+	needKickoutValidators := types.SortableAddresses{}
 	for _, validator := range validators {
 
 		key := validator.Bytes()
@@ -113,7 +113,7 @@ func (ec *EpochContext) kickoutValidator() error {
 		}
 		if cnt < int64(epochLength)/maxValidatorSize/2 {
 			// not active validators need kickout
-			needKickoutValidators = append(needKickoutValidators, &sortableAddress{validator, big.NewInt(cnt)})
+			needKickoutValidators = append(needKickoutValidators, &types.SortableAddress{validator, big.NewInt(cnt)})
 		}
 	}
 	// clear mintcnt trie
@@ -143,12 +143,12 @@ func (ec *EpochContext) kickoutValidator() error {
 			return nil
 		}
 
-		if err := ec.DposContext.KickoutCandidate(validator.address); err != nil {
+		if err := ec.DposContext.KickoutCandidate(validator.Address); err != nil {
 			return err
 		}
 		// if kickout success, candidateCount minus 1
 		candidateCount--
-		log.Info("Kickout candidate", "candidate", validator.address.String(), "mintCnt", validator.weight.String())
+		log.Info("Kickout candidate", "candidate", validator.Address.String(), "mintCnt", validator.Weight.String())
 	}
 	return nil
 }
@@ -184,9 +184,9 @@ func (ec *EpochContext) tryElect(genesis, parent *types.Header) error {
 	if err != nil {
 		return err
 	}
-	candidates := sortableAddresses{}
+	candidates := types.SortableAddresses{}
 	for candidate, cnt := range votes {
-		candidates = append(candidates, &sortableAddress{candidate, cnt})
+		candidates = append(candidates, &types.SortableAddress{candidate, cnt})
 	}
 	if len(candidates) < safeSize {
 		return errors.New("too few candidates")
@@ -198,12 +198,13 @@ func (ec *EpochContext) tryElect(genesis, parent *types.Header) error {
 
 	sortedValidators := make([]common.Address, 0)
 	for _, candidate := range candidates {
-		sortedValidators = append(sortedValidators, candidate.address)
+		sortedValidators = append(sortedValidators, candidate.Address)
 	}
 
 	epochTrie, _ := types.NewEpochTrie(common.Hash{}, ec.DposContext.DB())
 	ec.DposContext.SetEpoch(epochTrie)
 	ec.DposContext.SetValidators(sortedValidators)
+	ec.DposContext.SetSortableAddresses(candidates)
 
 	return nil
 }
@@ -240,22 +241,4 @@ func (s *EpochContext) signerIndex(signer common.Address) uint64 {
 		offset++
 	}
 	return uint64(offset)
-}
-
-type sortableAddress struct {
-	address common.Address
-	weight  *big.Int
-}
-type sortableAddresses []*sortableAddress
-
-func (p sortableAddresses) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
-func (p sortableAddresses) Len() int      { return len(p) }
-func (p sortableAddresses) Less(i, j int) bool {
-	if p[i].weight.Cmp(p[j].weight) < 0 {
-		return false
-	} else if p[i].weight.Cmp(p[j].weight) > 0 {
-		return true
-	} else {
-		return p[i].address.String() < p[j].address.String()
-	}
 }
