@@ -1,4 +1,3 @@
-
 // Package utils contains internal helper functions for linkeye commands.
 package utils
 
@@ -19,6 +18,7 @@ import (
 	"github.com/linkeye/linkeye/common/fdlimit"
 	"github.com/linkeye/linkeye/consensus"
 	"github.com/linkeye/linkeye/consensus/dpos"
+	"github.com/linkeye/linkeye/consensus/poa"
 	"github.com/linkeye/linkeye/core"
 	"github.com/linkeye/linkeye/core/state"
 	"github.com/linkeye/linkeye/core/vm"
@@ -1148,8 +1148,13 @@ func MakeChain(ctx *cli.Context, stack *node.Node) (chain *core.BlockChain, chai
 	if config.DPOS != nil {
 		engine = dpos.New(config.DPOS, chainDb)
 	} else {
-		Fatalf("no engine")
+		if config.POA != nil {
+			engine = poa.New(config.POA, chainDb)
+		} else {
+			Fatalf("no engine")
+		}
 	}
+
 	if gcmode := ctx.GlobalString(GCModeFlag.Name); gcmode != "full" && gcmode != "archive" {
 		Fatalf("--%s must be either 'full' or 'archive'", GCModeFlag.Name)
 	}

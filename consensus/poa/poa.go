@@ -26,21 +26,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkeye/go-linkeye/accounts"
-	"github.com/linkeye/go-linkeye/common"
-	"github.com/linkeye/go-linkeye/common/hexutil"
-	"github.com/linkeye/go-linkeye/consensus"
-	"github.com/linkeye/go-linkeye/consensus/misc"
-	"github.com/linkeye/go-linkeye/core/state"
-	"github.com/linkeye/go-linkeye/core/types"
-	"github.com/linkeye/go-linkeye/crypto"
-	"github.com/linkeye/go-linkeye/crypto/sha3"
-	"github.com/linkeye/go-linkeye/letdb"
-	"github.com/linkeye/go-linkeye/log"
-	"github.com/linkeye/go-linkeye/params"
-	"github.com/linkeye/go-linkeye/rlp"
-	"github.com/linkeye/go-linkeye/rpc"
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/linkeye/linkeye/accounts"
+	"github.com/linkeye/linkeye/common"
+	"github.com/linkeye/linkeye/common/hexutil"
+	"github.com/linkeye/linkeye/consensus"
+	"github.com/linkeye/linkeye/consensus/misc"
+	"github.com/linkeye/linkeye/core/state"
+	"github.com/linkeye/linkeye/core/types"
+	"github.com/linkeye/linkeye/crypto"
+	"github.com/linkeye/linkeye/crypto/sha3"
+	"github.com/linkeye/linkeye/letdb"
+	"github.com/linkeye/linkeye/log"
+	"github.com/linkeye/linkeye/params"
+	"github.com/linkeye/linkeye/rlp"
+	"github.com/linkeye/linkeye/rpc"
 )
 
 const (
@@ -66,7 +66,7 @@ var (
 
 	diffInTurn = big.NewInt(2) // Block difficulty for in-turn signatures
 	diffNoTurn = big.NewInt(1) // Block difficulty for out-of-turn signatures
-	diffMax = big.NewInt(5) // Max Block difficulty 
+	diffMax    = big.NewInt(5) // Max Block difficulty
 )
 
 // Various error messages to mark blocks invalid. These should be private to
@@ -132,7 +132,6 @@ var (
 	// on an instant chain (0 second period). It's important to refuse these as the
 	// block reward is zero, so an empty block just bloats the chain... fast.
 	errWaitTransactions = errors.New("waiting for transactions")
-	
 )
 
 // SignerFn is a signer callback function to request a hash to be signed by a
@@ -198,8 +197,8 @@ func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, er
 // Clique is the proof-of-authority consensus engine proposed to support the
 // Ethereum testnet following the Ropsten attacks.
 type PoA struct {
-	config *params.PoAConfig // Consensus engine configuration parameters
-	db     letdb.Database       // Database to store and retrieve snapshot checkpoints
+	config *params.POAConfig // Consensus engine configuration parameters
+	db     letdb.Database    // Database to store and retrieve snapshot checkpoints
 
 	recents    *lru.ARCCache // Snapshots for recent block to speed up reorgs
 	signatures *lru.ARCCache // Signatures of recent blocks to speed up mining
@@ -213,7 +212,7 @@ type PoA struct {
 
 // New creates a Clique proof-of-authority consensus engine with the initial
 // signers set to the ones provided by the user.
-func New(config *params.PoAConfig, db letdb.Database) *PoA {
+func New(config *params.POAConfig, db letdb.Database) *PoA {
 	// Set any missing consensus parameters to their defaults
 	conf := *config
 	if conf.Epoch == 0 {
@@ -273,7 +272,6 @@ func (c *PoA) verifyHeader(chain consensus.ChainReader, header *types.Header, pa
 		return errUnknownBlock
 	}
 	number := header.Number.Uint64()
-	
 
 	// Don't waste time checking blocks from the future
 	if header.Time.Cmp(big.NewInt(time.Now().Unix())) > 0 {
@@ -327,8 +325,8 @@ func (c *PoA) verifyHeader(chain consensus.ChainReader, header *types.Header, pa
 		} else {
 			parent = chain.GetHeader(header.ParentHash, number-1)
 		}
-		
-			// Retrieve the snapshot needed to verify this header and cache it
+
+		// Retrieve the snapshot needed to verify this header and cache it
 		snap, err := c.snapshot(chain, number-1, header.ParentHash, parents)
 		if err != nil {
 			return err
@@ -349,14 +347,14 @@ func (c *PoA) verifyHeader(chain consensus.ChainReader, header *types.Header, pa
 				}
 			}
 		}
-		
+
 		expected := CalcDifficulty(snap, signer, parent)
-	
+
 		if expected.Cmp(header.Difficulty) != 0 {
 			return errInvalidDifficulty
 		}
 	}
-	
+
 	// If all checks passed, validate any special fields for hard forks
 	if err := misc.VerifyForkHashes(chain.Config(), header, false); err != nil {
 		return err
@@ -505,7 +503,7 @@ func (c *PoA) VerifySeal(chain consensus.ChainReader, header *types.Header) erro
 // headers that aren't yet part of the local blockchain to generate the snapshots
 // from.
 func (c *PoA) verifySeal(chain consensus.ChainReader, header *types.Header, parents []*types.Header) error {
-	
+
 	//log.Info("verifySeal")
 	// Verifying the genesis block is not supported
 	number := header.Number.Uint64()
@@ -542,13 +540,13 @@ func (c *PoA) verifySeal(chain consensus.ChainReader, header *types.Header, pare
 	if !inturn && header.Difficulty.Cmp(diffNoTurn) != 0 {
 		return errInvalidDifficulty
 	}*/
-	
+
 	// Ensure that we have a valid difficulty for the block
 	if header.Difficulty.Sign() <= 0 {
 		log.Info("header.Difficulty.Sign() <= 0")
 		return errInvalidDifficulty
 	}
-	
+
 	return nil
 }
 
@@ -587,7 +585,7 @@ func (c *PoA) Prepare(chain consensus.ChainReader, header *types.Header) error {
 		}
 		c.lock.RUnlock()
 	}
-	
+
 	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
@@ -612,7 +610,6 @@ func (c *PoA) Prepare(chain consensus.ChainReader, header *types.Header) error {
 	// Mix digest is reserved for now, set to empty
 	header.MixDigest = common.Hash{}
 
-
 	header.Time = new(big.Int).Add(parent.Time, new(big.Int).SetUint64(c.config.Period))
 	if header.Time.Int64() < time.Now().Unix() {
 		header.Time = big.NewInt(time.Now().Unix())
@@ -621,35 +618,35 @@ func (c *PoA) Prepare(chain consensus.ChainReader, header *types.Header) error {
 }
 
 // Judge the create contract Transaction from a no authorized account for clique engine.
-func (c *PoA) JudgeTx(chain consensus.ChainReader, header *types.Header, tx *types.Transaction, from common.Address) error{
+func (c *PoA) JudgeTx(chain consensus.ChainReader, header *types.Header, tx *types.Transaction, from common.Address) error {
 
-		// get the number of the new block
-		number := header.Number.Uint64()
-	    //log.Info("PrepareTx number ","number",   number)
-		// get current block sanpshot
-		snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
-		if err != nil {
-			return err
-		}
-		//log.Info("PrepareTx get snapshot ")
-		if(tx.To() == nil){
-			//log.Info("PrepareTx tx.To() == nil")
+	// get the number of the new block
+	number := header.Number.Uint64()
+	//log.Info("PrepareTx number ","number",   number)
+	// get current block sanpshot
+	snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
+	if err != nil {
+		return err
+	}
+	//log.Info("PrepareTx get snapshot ")
+	if tx.To() == nil {
+		//log.Info("PrepareTx tx.To() == nil")
 		//judge a account is not a authorizer
-			if _, authorized := snap.Signers[from]; !authorized {
-				log.Info("PrepareTx create contract no authorized", "from", from)
-				return errUnauthorized
-			}else{
-				log.Info("PrepareTx create contract authorized", "from", from)
-			}
-		}else{
-			//log.Info("PrepareTx tx.To() != nil", "from", from)
+		if _, authorized := snap.Signers[from]; !authorized {
+			log.Info("PrepareTx create contract no authorized", "from", from)
+			return errUnauthorized
+		} else {
+			log.Info("PrepareTx create contract authorized", "from", from)
 		}
-		return nil
+	} else {
+		//log.Info("PrepareTx tx.To() != nil", "from", from)
+	}
+	return nil
 }
 
 // Finalize implements consensus.Engine, ensuring no uncles are set, nor block
 // rewards given, and returns the final block.
-func (c *PoA) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+func (c *PoA) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt, dposContext *types.DposContext) (*types.Block, error) {
 	// No block rewards in PoA, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)
@@ -679,7 +676,7 @@ func (c *PoA) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan 
 		return nil, errUnknownBlock
 	}
 	//log.Info("Seal", "number", number)
-	
+
 	// For 0-period chains, refuse to seal empty blocks (no reward but would spin sealing)
 	if c.config.Period == 0 && len(block.Transactions()) == 0 {
 		return nil, errWaitTransactions
@@ -710,14 +707,14 @@ func (c *PoA) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan 
 				delay := time.Duration(period) * time.Second
 
 				select {
-					case <-stop:
-						log.Info("Signed recently wait , exit from stop event")
-						return nil, nil
-					case <-time.After(delay):
-						log.Info("Signed recently wait, exit from delay", "delay", delay)
-					    return nil, consensus.ErrMining
+				case <-stop:
+					log.Info("Signed recently wait , exit from stop event")
+					return nil, nil
+				case <-time.After(delay):
+					log.Info("Signed recently wait, exit from delay", "delay", delay)
+					return nil, consensus.ErrMining
 				}
-				
+
 				//return nil, nil
 			}
 		}
@@ -731,7 +728,7 @@ func (c *PoA) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan 
 		delay += time.Duration(rand.Int63n(int64(wiggle)))
 
 		log.Info("Out-of-turn signing requested", "wiggle", common.PrettyDuration(wiggle))
-	}else{
+	} else {
 		log.Info("In-of-turn signing requested")
 	}
 	log.Trace("Waiting for slot to sign and propagate", "delay", common.PrettyDuration(delay))
@@ -759,41 +756,41 @@ func (c *PoA) CalcDifficulty(chain consensus.ChainReader, time uint64, parent *t
 	if err != nil {
 		return nil
 	}
-	
+
 	return CalcDifficulty(snap, c.signer, parent)
 }
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have based on the previous blocks in the chain and the
 // current signer.
-func CalcDifficulty(snap *Snapshot, signer common.Address ,parent *types.Header) *big.Int {
+func CalcDifficulty(snap *Snapshot, signer common.Address, parent *types.Header) *big.Int {
 	/*if snap.inturn(snap.Number+1, signer) {
 		return new(big.Int).Set(diffInTurn)
 	}
 	return new(big.Int).Set(diffNoTurn)*/
 	if len(snap.Signers) == 0 {
-	    return new(big.Int).SetUint64(0);
-	}    
+		return new(big.Int).SetUint64(0)
+	}
 	soffset := snap.signerIndex(signer)
-	noffset := (snap.Number+1) % uint64(len(snap.Signers))
+	noffset := (snap.Number + 1) % uint64(len(snap.Signers))
 	var index uint64
 	if noffset > soffset {
-		index = noffset - soffset 
-	}else{
-		index = uint64(len(snap.Signers)) - (soffset - noffset) 
+		index = noffset - soffset
+	} else {
+		index = uint64(len(snap.Signers)) - (soffset - noffset)
 	}
 	//diff = diff * uint64(diffMax) / uint64(len(snap.Signers))
 	//diff = diff + parent.Difficulty
-	
+
 	diff := new(big.Int).SetUint64(index)
 	signerCount := new(big.Int).SetUint64(uint64(len(snap.Signers)))
 	diff.Mul(diff, diffMax)
 	diff.Div(diff, signerCount)
 	//diff.Add(diff, parent.Difficulty)
 	diff.Add(diff, new(big.Int).SetUint64(1000)) // add a fixed number to avoid wiggle
-	
+
 	//log.Info("CalcDifficulty ","number",   snap.Number+1, "diff", diff)
-	
+
 	return diff
 }
 

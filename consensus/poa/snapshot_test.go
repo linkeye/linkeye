@@ -22,12 +22,12 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/linkeye/go-linkeye/common"
-	"github.com/linkeye/go-linkeye/core"
-	"github.com/linkeye/go-linkeye/core/types"
-	"github.com/linkeye/go-linkeye/crypto"
-	"github.com/linkeye/go-linkeye/letdb"
-	"github.com/linkeye/go-linkeye/params"
+	"github.com/linkeye/linkeye/common"
+	"github.com/linkeye/linkeye/core"
+	"github.com/linkeye/linkeye/core/types"
+	"github.com/linkeye/linkeye/crypto"
+	"github.com/linkeye/linkeye/letdb"
+	"github.com/linkeye/linkeye/params"
 )
 
 type testerVote struct {

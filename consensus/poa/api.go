@@ -17,17 +17,17 @@
 package poa
 
 import (
-	"github.com/linkeye/go-linkeye/common"
-	"github.com/linkeye/go-linkeye/consensus"
-	"github.com/linkeye/go-linkeye/core/types"
-	"github.com/linkeye/go-linkeye/rpc"
+	"github.com/linkeye/linkeye/common"
+	"github.com/linkeye/linkeye/consensus"
+	"github.com/linkeye/linkeye/core/types"
+	"github.com/linkeye/linkeye/rpc"
 )
 
 // API is a user facing RPC API to allow controlling the signer and voting
 // mechanisms of the proof-of-authority scheme.
 type API struct {
-	chain  consensus.ChainReader
-	poa *PoA
+	chain consensus.ChainReader
+	poa   *PoA
 }
 
 // GetSnapshot retrieves the state snapshot at a given block.

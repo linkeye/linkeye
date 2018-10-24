@@ -13,9 +13,10 @@ import (
 	"github.com/linkeye/linkeye/common"
 	"github.com/linkeye/linkeye/common/hexutil"
 	"github.com/linkeye/linkeye/consensus"
-	"github.com/linkeye/linkeye/consensus/dpos"
 	"github.com/linkeye/linkeye/consensus/bft"
 	bftBackend "github.com/linkeye/linkeye/consensus/bft/backend"
+	"github.com/linkeye/linkeye/consensus/dpos"
+	"github.com/linkeye/linkeye/consensus/poa"
 	"github.com/linkeye/linkeye/core"
 	"github.com/linkeye/linkeye/core/bloombits"
 	"github.com/linkeye/linkeye/core/types"
@@ -203,10 +204,15 @@ func CreateDB(ctx *node.ServiceContext, config *Config, name string) (letdb.Data
 
 // CreateConsensusEngine creates the required type of consensus engine instance for an Ethereum service
 func CreateConsensusEngine(ctx *node.ServiceContext, config *Config, chainConfig *params.ChainConfig, db letdb.Database) consensus.Engine {
-	// If proof-of-authority is requested, set it up
+	// If Delegated-Proof-of-Stake is requested, set it up
 	if chainConfig.DPOS != nil {
 		return dpos.New(chainConfig.DPOS, db)
 	}
+	// If proof-of-authority is requested, set it up
+	if chainConfig.POA != nil {
+		return poa.New(chainConfig.POA, db)
+	}
+
 	// If BFT is requested, set it up
 	if chainConfig.BFT != nil {
 		if chainConfig.BFT.Epoch != 0 {
@@ -331,6 +337,14 @@ func (s *Ethereum) StartMining(local bool) error {
 			return fmt.Errorf("signer missing: %v", err)
 		}
 		dpos.Authorize(eb, wallet.SignHash)
+	}
+	if poa, ok := s.engine.(*poa.PoA); ok {
+		wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
+		if wallet == nil || err != nil {
+			log.Error("Etherbase account unavailable locally", "err", err)
+			return fmt.Errorf("signer missing: %v", err)
+		}
+		poa.Authorize(eb, wallet.SignHash)
 	}
 	if local {
 		// If local (CPU) mining is started, we can disable the transaction rejection
