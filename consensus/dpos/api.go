@@ -146,3 +146,44 @@ func (api *API) GetMintCnts(number *rpc.BlockNumber) ([]types.MintCntAddress, er
 	}
 	return dposContext.GetMintCnts()
 }
+
+// GetVote retrieves delegator to candidate at specified block
+func (api *API) GetVote(addr common.Address, number *rpc.BlockNumber) (map[string]string, error) {
+	var header *types.Header
+	vote := make(map[string]string)
+	if number == nil || *number == rpc.LatestBlockNumber {
+		header = api.chain.CurrentHeader()
+	} else {
+		header = api.chain.GetHeaderByNumber(uint64(number.Int64()))
+	}
+	if header == nil {
+		return vote, errUnknownBlock
+	}
+
+	dposContext, err := types.NewDposContextFromProto(api.dpos.db, header.DposContext)
+	if err != nil {
+		return vote, err
+	}
+	return dposContext.GetVote(addr)
+}
+
+// GetVotes retrieves all delegator to their candidate at specified block
+func (api *API) GetVotes(number *rpc.BlockNumber) (map[string]string, error) {
+	var header *types.Header
+	votes := make(map[string]string)
+
+	if number == nil || *number == rpc.LatestBlockNumber {
+		header = api.chain.CurrentHeader()
+	} else {
+		header = api.chain.GetHeaderByNumber(uint64(number.Int64()))
+	}
+	if header == nil {
+		return votes, errUnknownBlock
+	}
+
+	dposContext, err := types.NewDposContextFromProto(api.dpos.db, header.DposContext)
+	if err != nil {
+		return votes, err
+	}
+	return dposContext.GetVotes()
+}

@@ -517,3 +517,38 @@ func (dc *DposContext) GetMintCnts() ([]MintCntAddress, error) {
 	}
 	return mintCntAddresses, nil
 }
+
+func (dc *DposContext) GetVote(addr common.Address) (map[string]string, error) {
+	vote := make(map[string]string)
+	addrV := common.Address{}
+	candidate := dc.voteTrie.Get(addr.Bytes())
+	if candidate != nil {
+		addrV.SetBytes(candidate)
+		vote[addr.String()] = addrV.String()
+	}
+	return vote, nil
+}
+
+func (dc *DposContext) GetVotes() (map[string]string, error) {
+	vote := make(map[string]string)
+
+	voteTrie := dc.VoteTrie()
+	iterVote := trie.NewIterator(voteTrie.NodeIterator(nil))
+	existVote := iterVote.Next()
+	if !existVote {
+		return vote, nil
+	}
+
+	for existVote {
+		addrK := common.Address{}
+		addrK.SetBytes(iterVote.Key)
+
+		addrV := common.Address{}
+		addrV.SetBytes(iterVote.Value)
+
+		vote[addrK.String()] = addrV.String()
+
+		existVote = iterVote.Next()
+	}
+	return vote, nil
+}
