@@ -562,6 +562,7 @@ func (dc *DposContext) GetCFDs() (map[string]map[string]*big.Int, error) {
 	iterCandidate := trie.NewIterator(candidateTrie.NodeIterator(nil))
 	existCandidate := iterCandidate.Next()
 	if !existCandidate {
+		log.Error("GetCFDs: no candidates")
 		return cfd, errors.New("no candidates")
 	}
 	for existCandidate {
@@ -569,19 +570,33 @@ func (dc *DposContext) GetCFDs() (map[string]map[string]*big.Int, error) {
 		candidate := iterCandidate.Value
 		rlp.DecodeBytes(candidate, &cc)
 		candidateAddr := common.BytesToAddress(cc.Addr.Bytes())
-		delegateIterator := trie.NewIterator(delegateTrie.PrefixIterator(candidate))
+		log.Info("loop:", "candidate", candidateAddr)
+		//delegateIterator := trie.NewIterator(delegateTrie.PrefixIterator(candidate))
+		delegateIterator := trie.NewIterator(delegateTrie.PrefixIterator(cc.Addr.Bytes()))
 		existDelegator := delegateIterator.Next()
 		if !existDelegator {
+			log.Info("!existDelegator:", "candidate", candidateAddr)
 			firstMap := cfd[candidateAddr.String()]
 			if firstMap == nil {
 				firstMap = make(map[string]*big.Int)
+				log.Info("firstMap:", "candidate", candidateAddr)
+				cfd[candidateAddr.String()] = firstMap
 			}
 			existCandidate = iterCandidate.Next()
 			continue
 		}
 		for existDelegator {
+			firstMap := cfd[candidateAddr.String()]
+			if firstMap == nil {
+				firstMap = make(map[string]*big.Int)
+				log.Info("firstMap In existDelegator:", "candidate", candidateAddr)
+				cfd[candidateAddr.String()] = firstMap
+			}
+
+			log.Info("existDelegator:", "candidate", candidateAddr)
 			delegator := delegateIterator.Value
 			delegatorAddr := common.BytesToAddress(delegator)
+			log.Info("existDelegator:", "delegate", delegatorAddr)
 			score, ok := cfd[candidateAddr.String()][delegatorAddr.String()]
 			if !ok {
 				score = new(big.Int)

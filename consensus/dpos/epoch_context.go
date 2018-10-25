@@ -70,14 +70,17 @@ func (ec *EpochContext) countVotes() (votes map[common.Address]*big.Int, err err
 		candidate := iterCandidate.Value
 		rlp.DecodeBytes(candidate, &cc)
 		candidateAddr := common.BytesToAddress(cc.Addr.Bytes())
-		delegateIterator := trie.NewIterator(delegateTrie.PrefixIterator(candidate))
+		//delegateIterator := trie.NewIterator(delegateTrie.PrefixIterator(candidate))
+		delegateIterator := trie.NewIterator(delegateTrie.PrefixIterator(cc.Addr.Bytes()))
 		existDelegator := delegateIterator.Next()
 		if !existDelegator {
+			log.Info("-------!existDelegator", "candidate", candidateAddr)
 			votes[candidateAddr] = new(big.Int)
 			existCandidate = iterCandidate.Next()
 			continue
 		}
 		for existDelegator {
+			log.Info("-------existDelegator", "candidate", candidateAddr)
 			delegator := delegateIterator.Value
 			score, ok := votes[candidateAddr]
 			if !ok {
@@ -90,6 +93,9 @@ func (ec *EpochContext) countVotes() (votes map[common.Address]*big.Int, err err
 			existDelegator = delegateIterator.Next()
 		}
 		existCandidate = iterCandidate.Next()
+	}
+	for k, v := range votes {
+		log.Info("votes:", "k", k, "v", v)
 	}
 	return votes, nil
 }
