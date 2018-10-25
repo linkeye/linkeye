@@ -126,3 +126,23 @@ func (api *API) GetMintCnt(addr common.Address, number *rpc.BlockNumber) (int64,
 	cnt = dposContext.GetMintCnt(addr)
 	return cnt, nil
 }
+
+// GetMintCnt retrieves all the mint cnt of all validators at specified block
+func (api *API) GetMintCnts(number *rpc.BlockNumber) ([]types.MintCntAddress, error) {
+	var header *types.Header
+	ma := make([]types.MintCntAddress, 0)
+	if number == nil || *number == rpc.LatestBlockNumber {
+		header = api.chain.CurrentHeader()
+	} else {
+		header = api.chain.GetHeaderByNumber(uint64(number.Int64()))
+	}
+	if header == nil {
+		return ma, errUnknownBlock
+	}
+
+	dposContext, err := types.NewDposContextFromProto(api.dpos.db, header.DposContext)
+	if err != nil {
+		return ma, err
+	}
+	return dposContext.GetMintCnts()
+}

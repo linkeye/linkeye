@@ -30,6 +30,25 @@ type CandidateContext struct {
 	BlockNumber *big.Int       `json:"blocknumber" gencodec:"required"`
 }
 
+type MintCntAddress struct {
+	Address common.Address `json:"addr" gencodec:"required"`
+	MintCnt int64          `json:"mintcnt" gencodec:"required"`
+}
+
+type SortableMintCntAddresses []*MintCntAddress
+
+func (p SortableMintCntAddresses) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p SortableMintCntAddresses) Len() int      { return len(p) }
+func (p SortableMintCntAddresses) Less(i, j int) bool {
+	if p[i].MintCnt < p[j].MintCnt {
+		return true
+	} else if p[i].MintCnt > p[j].MintCnt {
+		return false
+	} else {
+		return p[i].Address.String() < p[j].Address.String()
+	}
+}
+
 type SortableAddress struct {
 	Address common.Address `json:"addr" gencodec:"required"`
 	Weight  *big.Int       `json:"weight" gencodec:"required"`
@@ -475,4 +494,26 @@ func (dc *DposContext) GetMintCnt(validator common.Address) int64 {
 		cnt = int64(binary.BigEndian.Uint64(cntBytes))
 	}
 	return cnt
+}
+
+func (dc *DposContext) GetMintCnts() ([]MintCntAddress, error) {
+	mintCntAddresses := make([]MintCntAddress, 0)
+
+	mintCntTrie := dc.MintCntTrie()
+	iterMintCnt := trie.NewIterator(mintCntTrie.NodeIterator(nil))
+	existMintCnt := iterMintCnt.Next()
+	if !existMintCnt {
+		return mintCntAddresses, nil
+	}
+
+	for existMintCnt {
+		addr := common.Address{}
+		addr.SetBytes(iterMintCnt.Key)
+
+		cnt := int64(binary.BigEndian.Uint64(iterMintCnt.Value))
+
+		mintCntAddresses = append(mintCntAddresses, MintCntAddress{addr, cnt})
+		existMintCnt = iterMintCnt.Next()
+	}
+	return mintCntAddresses, nil
 }
