@@ -71,6 +71,18 @@ web3._extend({
 			params: 2,
 			inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputBlockNumberFormatter]
 		}),
+		new web3._extend.Method({
+			name: 'getSortableAddresses',
+			call: 'dpos_getSortableAddresses',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getMintCnt',
+			call: 'dpos_getMintCnt',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputBlockNumberFormatter]
+		}),
 	]
 });
 `

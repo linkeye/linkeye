@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -465,4 +466,13 @@ func (dc *DposContext) SetSortableAddresses(sa SortableAddresses) error {
 	}
 	dc.epochTrie.Update(key, sortedvalidatorsRLP)
 	return nil
+}
+
+func (dc *DposContext) GetMintCnt(validator common.Address) int64 {
+	cnt := int64(0)
+	cntBytes := dc.mintCntTrie.Get(validator.Bytes())
+	if cntBytes != nil {
+		cnt = int64(binary.BigEndian.Uint64(cntBytes))
+	}
+	return cnt
 }

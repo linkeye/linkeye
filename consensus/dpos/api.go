@@ -105,3 +105,24 @@ func (api *API) GetSortableAddresses(number *rpc.BlockNumber) (types.SortableAdd
 	}
 	return sa, nil
 }
+
+// GetMintCnt retrieves the mint cnt of the validator at specified block
+func (api *API) GetMintCnt(addr common.Address, number *rpc.BlockNumber) (int64, error) {
+	var header *types.Header
+	cnt := int64(0)
+	if number == nil || *number == rpc.LatestBlockNumber {
+		header = api.chain.CurrentHeader()
+	} else {
+		header = api.chain.GetHeaderByNumber(uint64(number.Int64()))
+	}
+	if header == nil {
+		return cnt, errUnknownBlock
+	}
+
+	dposContext, err := types.NewDposContextFromProto(api.dpos.db, header.DposContext)
+	if err != nil {
+		return cnt, err
+	}
+	cnt = dposContext.GetMintCnt(addr)
+	return cnt, nil
+}
