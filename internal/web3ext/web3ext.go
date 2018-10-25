@@ -101,7 +101,12 @@ web3._extend({
 			params: 1,
 			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
 		}),
-
+		new web3._extend.Method({
+			name: 'getCFDs',
+			call: 'dpos_getCFDs',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
+		}),
 	]
 });
 `

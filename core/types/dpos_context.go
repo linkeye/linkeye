@@ -552,3 +552,44 @@ func (dc *DposContext) GetVotes() (map[string]string, error) {
 	}
 	return vote, nil
 }
+
+// GetCFDs retrieves all candidates from their delegates
+func (dc *DposContext) GetCFDs() (map[string]map[string]*big.Int, error) {
+	cfd := make(map[string]map[string]*big.Int)
+	delegateTrie := dc.DelegateTrie()
+	candidateTrie := dc.CandidateTrie()
+
+	iterCandidate := trie.NewIterator(candidateTrie.NodeIterator(nil))
+	existCandidate := iterCandidate.Next()
+	if !existCandidate {
+		return cfd, errors.New("no candidates")
+	}
+	for existCandidate {
+		var cc CandidateContext
+		candidate := iterCandidate.Value
+		rlp.DecodeBytes(candidate, &cc)
+		candidateAddr := common.BytesToAddress(cc.Addr.Bytes())
+		delegateIterator := trie.NewIterator(delegateTrie.PrefixIterator(candidate))
+		existDelegator := delegateIterator.Next()
+		if !existDelegator {
+			firstMap := cfd[candidateAddr.String()]
+			if firstMap == nil {
+				firstMap = make(map[string]*big.Int)
+			}
+			existCandidate = iterCandidate.Next()
+			continue
+		}
+		for existDelegator {
+			delegator := delegateIterator.Value
+			delegatorAddr := common.BytesToAddress(delegator)
+			score, ok := cfd[candidateAddr.String()][delegatorAddr.String()]
+			if !ok {
+				score = new(big.Int)
+			}
+			cfd[candidateAddr.String()][delegatorAddr.String()] = score
+			existDelegator = delegateIterator.Next()
+		}
+		existCandidate = iterCandidate.Next()
+	}
+	return cfd, nil
+}

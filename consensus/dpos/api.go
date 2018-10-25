@@ -1,6 +1,8 @@
 package dpos
 
 import (
+	"math/big"
+
 	"github.com/linkeye/linkeye/common"
 	"github.com/linkeye/linkeye/consensus"
 	"github.com/linkeye/linkeye/core/types"
@@ -186,4 +188,25 @@ func (api *API) GetVotes(number *rpc.BlockNumber) (map[string]string, error) {
 		return votes, err
 	}
 	return dposContext.GetVotes()
+}
+
+// GetCFDs retrieves all candidates from their delegates at specified block
+func (api *API) GetCFDs(number *rpc.BlockNumber) (map[string]map[string]*big.Int, error) {
+	var header *types.Header
+	cfd := make(map[string]map[string]*big.Int)
+
+	if number == nil || *number == rpc.LatestBlockNumber {
+		header = api.chain.CurrentHeader()
+	} else {
+		header = api.chain.GetHeaderByNumber(uint64(number.Int64()))
+	}
+	if header == nil {
+		return cfd, errUnknownBlock
+	}
+
+	dposContext, err := types.NewDposContextFromProto(api.dpos.db, header.DposContext)
+	if err != nil {
+		return cfd, err
+	}
+	return dposContext.GetCFDs()
 }
