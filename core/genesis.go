@@ -412,6 +412,7 @@ func initGenesisDposContext(g *Genesis, db letdb.Database) *types.DposContext {
 				Addr:        validator,
 				State:       types.LoginState,
 				BlockNumber: big.NewInt(0),
+				Score:       big.NewInt(0),
 			})
 		}
 	}
