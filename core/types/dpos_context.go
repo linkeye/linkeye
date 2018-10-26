@@ -23,11 +23,12 @@ const (
 	WithdrawingState
 )
 
-// 候选人抵押结构体，包含候选人地址，币抵押状态（完全抵押，解押中，完全解押）
+// 候选人抵押结构体，包含候选人地址，币抵押状态（完全抵押，解押中，完全解押）,块号和得票数
 type CandidateContext struct {
 	Addr        common.Address `json:"addr" gencodec:"required"`
 	State       CoinState      `json:"state" gencodec:"required"`
 	BlockNumber *big.Int       `json:"blocknumber" gencodec:"required"`
+	Score       *big.Int       `json:"score" gencodec:"required"`
 }
 
 type MintCntAddress struct {

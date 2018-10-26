@@ -100,6 +100,24 @@ func (ec *EpochContext) countVotes() (votes map[common.Address]*big.Int, err err
 	return votes, nil
 }
 
+// CommitScores commit candidate score into candidate tree in every epoch elec process
+func (ec *EpochContext) CommitScores(scores map[common.Address]*big.Int) error {
+	for k, v := range scores {
+		cc, err := ec.DposContext.GetCandidateContext(k)
+		if err != nil {
+			return err
+		}
+		if bytes.Compare(cc.Addr.Bytes(), k.Bytes()) == 0 {
+			cc.Score = v
+			err = ec.DposContext.SetCandidateContext(cc)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (ec *EpochContext) kickoutValidator() error {
 	validators, err := ec.DposContext.GetValidators()
 	if err != nil {
@@ -190,6 +208,12 @@ func (ec *EpochContext) tryElect(genesis, parent *types.Header) error {
 	if err != nil {
 		return err
 	}
+
+	err = ec.CommitScores(votes)
+	if err != nil {
+		return err
+	}
+
 	candidates := types.SortableAddresses{}
 	for candidate, cnt := range votes {
 		candidates = append(candidates, &types.SortableAddress{candidate, cnt})
