@@ -40,8 +40,8 @@ func (api *API) GetValidators(number *rpc.BlockNumber) ([]common.Address, error)
 	return validators, nil
 }
 
-// GetCandidates retrieves the list of the candidates at specified block
-func (api *API) GetCandidates(number *rpc.BlockNumber) ([]types.CandidateContext, error) {
+// GetCandidates retrieves maxcnt result of the list of the candidates at specified block
+func (api *API) GetCandidates(maxcnt, number *rpc.BlockNumber) ([]types.CandidateContext, error) {
 	var header *types.Header
 	if number == nil || *number == rpc.LatestBlockNumber {
 		header = api.chain.CurrentHeader()
@@ -61,7 +61,14 @@ func (api *API) GetCandidates(number *rpc.BlockNumber) ([]types.CandidateContext
 		return nil, err
 	}
 	sort.Sort(types.SortCandidateContexts(candidates))
-	return candidates, nil
+	if maxcnt == nil {
+		return candidates, nil
+	}
+	index := int(maxcnt.Int64())
+	if int(maxcnt.Int64()) > len(candidates) {
+		index = len(candidates)	
+	}
+	return candidates[:index], nil
 }
 
 // GetCandidates retrieves the list of the candidates at specified block
@@ -131,8 +138,8 @@ func (api *API) GetMintCnt(addr common.Address, number *rpc.BlockNumber) (int64,
 	return cnt, nil
 }
 
-// GetMintCnt retrieves all the mint cnt of all validators at specified block
-func (api *API) GetMintCnts(number *rpc.BlockNumber) ([]types.MintCntAddress, error) {
+// GetMintCnt retrieves maxcnt result of the mint cnt of all validators at specified block
+func (api *API) GetMintCnts(maxcnt, number *rpc.BlockNumber) ([]types.MintCntAddress, error) {
 	var header *types.Header
 	ma := make([]types.MintCntAddress, 0)
 	if number == nil || *number == rpc.LatestBlockNumber {
@@ -148,7 +155,16 @@ func (api *API) GetMintCnts(number *rpc.BlockNumber) ([]types.MintCntAddress, er
 	if err != nil {
 		return ma, err
 	}
-	return dposContext.GetMintCnts()
+	ma, err = dposContext.GetMintCnts()
+	sort.Sort(types.SortableMintCntAddresses(ma))
+	if maxcnt == nil {
+		return ma, err
+	}
+	index := int(maxcnt.Int64())
+	if int(maxcnt.Int64()) > len(ma) {
+		index = len(ma)	
+	}
+	return ma[:index], nil
 }
 
 // GetVote retrieves delegator to candidate at specified block
