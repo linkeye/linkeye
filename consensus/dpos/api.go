@@ -2,6 +2,7 @@ package dpos
 
 import (
 	"math/big"
+	"sort"
 
 	"github.com/linkeye/linkeye/common"
 	"github.com/linkeye/linkeye/consensus"
@@ -59,6 +60,7 @@ func (api *API) GetCandidates(number *rpc.BlockNumber) ([]types.CandidateContext
 	if err != nil {
 		return nil, err
 	}
+	sort.Sort(types.SortCandidateContexts(candidates))
 	return candidates, nil
 }
 

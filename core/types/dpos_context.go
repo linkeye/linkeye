@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sort"
 
 	"github.com/linkeye/linkeye/common"
 	"github.com/linkeye/linkeye/crypto/sha3"
@@ -31,22 +32,37 @@ type CandidateContext struct {
 	Score       *big.Int       `json:"score" gencodec:"required"`
 }
 
+// SortCandidateContexts, p[0].score > p[1].score > [p...].score
+type SortCandidateContexts []CandidateContext
+
+func (p SortCandidateContexts) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p SortCandidateContexts) Len() int      { return len(p) }
+func (p SortCandidateContexts) Less(i, j int) bool {
+	if p[i].Score.Cmp(p[j].Score) < 0 {
+		return false
+	} else if p[i].Score.Cmp(p[j].Score) > 0 {
+		return true
+	} else {
+		return p[i].Addr.String() > p[j].Addr.String()
+	}
+}
+
 type MintCntAddress struct {
 	Address common.Address `json:"addr" gencodec:"required"`
 	MintCnt int64          `json:"mintcnt" gencodec:"required"`
 }
 
-type SortableMintCntAddresses []*MintCntAddress
+type SortableMintCntAddresses []MintCntAddress
 
 func (p SortableMintCntAddresses) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 func (p SortableMintCntAddresses) Len() int      { return len(p) }
 func (p SortableMintCntAddresses) Less(i, j int) bool {
 	if p[i].MintCnt < p[j].MintCnt {
-		return true
-	} else if p[i].MintCnt > p[j].MintCnt {
 		return false
+	} else if p[i].MintCnt > p[j].MintCnt {
+		return true
 	} else {
-		return p[i].Address.String() < p[j].Address.String()
+		return p[i].Address.String() > p[j].Address.String()
 	}
 }
 
@@ -516,6 +532,7 @@ func (dc *DposContext) GetMintCnts() ([]MintCntAddress, error) {
 		mintCntAddresses = append(mintCntAddresses, MintCntAddress{addr, cnt})
 		existMintCnt = iterMintCnt.Next()
 	}
+	sort.Sort(SortableMintCntAddresses(mintCntAddresses))
 	return mintCntAddresses, nil
 }
 
