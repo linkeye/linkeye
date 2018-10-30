@@ -1297,6 +1297,88 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	return submitTransaction(ctx, s.b, signed)
 }
 
+// LoginCandidate creates a message for the given argument, sign it and submit it to the
+// transaction pool.
+func (s *PublicTransactionPoolAPI) LoginCandidate(ctx context.Context, from common.Address) (common.Hash, error) {
+	var args SendTxArgs
+	args.From = from.Hex()
+	args.To = Addr2LetStrPtr(&from)
+
+	onelet := new(big.Int).Mul(big.NewInt(1), big.NewInt(params.Leter)) // 1 LET
+	minlet := new(big.Int).Div(onelet, big.NewInt(100))                 // 1/100 = 0.01LET
+
+	args.Fee = new(hexutil.Big)
+	args.Fee = (*hexutil.Big)(minlet)
+
+	args.Type = types.LoginCandidate
+
+	return s.SendTransaction(ctx, args)
+}
+
+func (s *PublicTransactionPoolAPI) LogoutCandidate(ctx context.Context, from common.Address) (common.Hash, error) {
+	var args SendTxArgs
+	args.From = from.Hex()
+	args.To = Addr2LetStrPtr(&from)
+
+	onelet := new(big.Int).Mul(big.NewInt(1), big.NewInt(params.Leter)) // 1 LET
+	minlet := new(big.Int).Div(onelet, big.NewInt(100))                 // 1/100 = 0.01LET
+
+	args.Fee = new(hexutil.Big)
+	args.Fee = (*hexutil.Big)(minlet)
+
+	args.Type = types.LogoutCandidate
+
+	return s.SendTransaction(ctx, args)
+}
+
+func (s *PublicTransactionPoolAPI) WithdrawCandidate(ctx context.Context, from common.Address) (common.Hash, error) {
+	var args SendTxArgs
+	args.From = from.Hex()
+	args.To = Addr2LetStrPtr(&from)
+
+	onelet := new(big.Int).Mul(big.NewInt(1), big.NewInt(params.Leter)) // 1 LET
+	minlet := new(big.Int).Div(onelet, big.NewInt(100))                 // 1/100 = 0.01LET
+
+	args.Fee = new(hexutil.Big)
+	args.Fee = (*hexutil.Big)(minlet)
+
+	args.Type = types.WithdrawCandidate
+
+	return s.SendTransaction(ctx, args)
+}
+
+func (s *PublicTransactionPoolAPI) Delegate(ctx context.Context, from, to common.Address) (common.Hash, error) {
+	var args SendTxArgs
+	args.From = from.Hex()
+	args.To = Addr2LetStrPtr(&to)
+
+	onelet := new(big.Int).Mul(big.NewInt(1), big.NewInt(params.Leter)) // 1 LET
+	minlet := new(big.Int).Div(onelet, big.NewInt(100))                 // 1/100 = 0.01LET
+
+	args.Fee = new(hexutil.Big)
+	args.Fee = (*hexutil.Big)(minlet)
+
+	args.Type = types.Delegate
+
+	return s.SendTransaction(ctx, args)
+}
+
+func (s *PublicTransactionPoolAPI) Undelegate(ctx context.Context, from, to common.Address) (common.Hash, error) {
+	var args SendTxArgs
+	args.From = from.Hex()
+	args.To = Addr2LetStrPtr(&to)
+
+	onelet := new(big.Int).Mul(big.NewInt(1), big.NewInt(params.Leter)) // 1 LET
+	minlet := new(big.Int).Div(onelet, big.NewInt(100))                 // 1/100 = 0.01LET
+
+	args.Fee = new(hexutil.Big)
+	args.Fee = (*hexutil.Big)(minlet)
+
+	args.Type = types.UnDelegate
+
+	return s.SendTransaction(ctx, args)
+}
+
 // SendRawTransaction will add the signed transaction to the transaction pool.
 // The sender is responsible for signing the transaction and using the correct nonce.
 func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (common.Hash, error) {

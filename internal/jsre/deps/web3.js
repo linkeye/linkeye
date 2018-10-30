@@ -5380,6 +5380,41 @@ var methods = function () {
         inputFormatter: [formatters.inputTransactionFormatter]
     });
 
+    var loginCandidate = new Method({
+        name: 'loginCandidate',
+        call: 'let_loginCandidate',
+        params: 1,
+        inputFormatter: [formatters.inputAddressFormatter]
+    });
+
+    var logoutCandidate = new Method({
+        name: 'logoutCandidate',
+        call: 'let_logoutCandidate',
+        params: 1,
+        inputFormatter: [formatters.inputAddressFormatter]
+    });
+
+    var withdrawCandidate = new Method({
+        name: 'withdrawCandidate',
+        call: 'let_withdrawCandidate',
+        params: 1,
+        inputFormatter: [formatters.inputAddressFormatter]
+    });
+
+    var delegate = new Method({
+        name: 'delegate',
+        call: 'let_delegate',
+        params: 2,
+        inputFormatter: [formatters.inputAddressFormatter, formatters.inputAddressFormatter]
+    });
+
+    var undelegate = new Method({
+        name: 'undelegate',
+        call: 'let_undelegate',
+        params: 2,
+        inputFormatter: [formatters.inputAddressFormatter, formatters.inputAddressFormatter]
+    });
+
     var signTransaction = new Method({
         name: 'signTransaction',
         call: 'let_signTransaction',
@@ -5457,6 +5492,11 @@ var methods = function () {
         sendRawTransaction,
         signTransaction,
         sendTransaction,
+	loginCandidate,
+	logoutCandidate,
+	withdrawCandidate,
+	delegate,
+	undelegate,
         sign,
         compileSolidity,
         compileLLL,
