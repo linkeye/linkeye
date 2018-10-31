@@ -662,11 +662,23 @@ func (dc *DposContext) GetCFDs() (map[string]map[string]*big.Int, error) {
 			delegator := delegateIterator.Value
 			delegatorAddr := common.BytesToAddress(delegator)
 			log.Info("existDelegator:", "delegate", delegatorAddr)
+
 			score, ok := cfd[candidateAddr.String()][delegatorAddr.String()]
 			if !ok {
 				score = new(big.Int)
 			}
+
+			var vc VoteContext
+			candidateRLP := dc.voteTrie.Get(delegator)
+			if candidateRLP != nil {
+				if err := rlp.DecodeBytes(candidateRLP, &vc); err != nil {
+					return cfd, fmt.Errorf("failed to decode VoteContext: %s", err)
+				}
+			}
+			score = vc.DelegatorBalance
+
 			cfd[candidateAddr.String()][delegatorAddr.String()] = score
+
 			existDelegator = delegateIterator.Next()
 		}
 		existCandidate = iterCandidate.Next()
