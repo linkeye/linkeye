@@ -47,6 +47,29 @@ func (p SortCandidateContexts) Less(i, j int) bool {
 	}
 }
 
+// 投票人结构体，包含投票人地址，候选人地址，投票时块号和投票人当时余额
+type VoteContext struct {
+	Delegator        common.Address `json:"delegator" gencodec:"required"`
+	Candidate        common.Address `json:"candidate" gencodec:"required"`
+	BlockNumber      *big.Int       `json:"blocknumber" gencodec:"required"`
+	DelegatorBalance *big.Int       `json:"delegatorbalance" gencodec:"required"`
+}
+
+// SortVoteContexts, p[0].delegatorbalance > p[1].delegatorbalance > [p...].delegatorbalance
+type SortVoteContexts []VoteContext
+
+func (p SortVoteContexts) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p SortVoteContexts) Len() int      { return len(p) }
+func (p SortVoteContexts) Less(i, j int) bool {
+	if p[i].DelegatorBalance.Cmp(p[j].DelegatorBalance) < 0 {
+		return false
+	} else if p[i].DelegatorBalance.Cmp(p[j].DelegatorBalance) > 0 {
+		return true
+	} else {
+		return p[i].Delegator.String() > p[j].Delegator.String()
+	}
+}
+
 type MintCntAddress struct {
 	Address common.Address `json:"addr" gencodec:"required"`
 	MintCnt int64          `json:"mintcnt" gencodec:"required"`
@@ -317,7 +340,7 @@ func (d *DposContext) BecomeCandidate(candidateAddr common.Address) error {
 	return d.candidateTrie.TryUpdate(candidate, candidate)
 }
 
-func (d *DposContext) Delegate(delegatorAddr, candidateAddr common.Address) error {
+func (d *DposContext) Delegate(delegatorAddr, candidateAddr common.Address, blockNum, delegatorbal *big.Int) error {
 	delegator, candidate := delegatorAddr.Bytes(), candidateAddr.Bytes()
 
 	// the candidate must be candidate
@@ -330,19 +353,33 @@ func (d *DposContext) Delegate(delegatorAddr, candidateAddr common.Address) erro
 	}
 
 	// delete old candidate if exists
-	oldCandidate, err := d.voteTrie.TryGet(delegator)
+	oldCandidateRLP, err := d.voteTrie.TryGet(delegator)
 	if err != nil {
 		if _, ok := err.(*trie.MissingNodeError); !ok {
 			return err
 		}
 	}
-	if oldCandidate != nil {
+	var vc VoteContext
+	if oldCandidateRLP != nil {
+		if err := rlp.DecodeBytes(oldCandidateRLP, &vc); err != nil {
+			return errors.New("decode " + delegatorAddr.String() + "votecontext error")
+		}
+		oldCandidate := vc.Candidate.Bytes()
 		d.delegateTrie.Delete(append(oldCandidate, delegator...))
 	}
 	if err = d.delegateTrie.TryUpdate(append(candidate, delegator...), delegator); err != nil {
 		return err
 	}
-	return d.voteTrie.TryUpdate(delegator, candidate)
+	//return d.voteTrie.TryUpdate(delegator, candidate)
+	vc.Delegator.SetBytes(delegatorAddr.Bytes())
+	vc.Candidate.SetBytes(candidateAddr.Bytes())
+	vc.BlockNumber = blockNum
+	vc.DelegatorBalance = delegatorbal
+	vcRLP, err := rlp.EncodeToBytes(vc)
+	if err != nil {
+		return errors.New("encode " + delegatorAddr.String() + "to votecontext error")
+	}
+	return d.voteTrie.TryUpdate(delegator, vcRLP)
 }
 
 func (d *DposContext) UnDelegate(delegatorAddr, candidateAddr common.Address) error {
@@ -357,11 +394,17 @@ func (d *DposContext) UnDelegate(delegatorAddr, candidateAddr common.Address) er
 		return errors.New("invalid candidate to undelegate")
 	}
 
-	oldCandidate, err := d.voteTrie.TryGet(delegator)
+	oldCandidateRLP, err := d.voteTrie.TryGet(delegator)
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(candidate, oldCandidate) {
+	var vc VoteContext
+	if oldCandidateRLP != nil {
+		if err := rlp.DecodeBytes(oldCandidateRLP, &vc); err != nil {
+			return errors.New("decode " + delegatorAddr.String() + "votecontext error")
+		}
+	}
+	if !bytes.Equal(candidate, vc.Candidate.Bytes()) {
 		return errors.New("mismatch candidate to undelegate")
 	}
 
@@ -536,19 +579,21 @@ func (dc *DposContext) GetMintCnts() ([]MintCntAddress, error) {
 	return mintCntAddresses, nil
 }
 
-func (dc *DposContext) GetVote(addr common.Address) (map[string]string, error) {
-	vote := make(map[string]string)
-	addrV := common.Address{}
-	candidate := dc.voteTrie.Get(addr.Bytes())
-	if candidate != nil {
-		addrV.SetBytes(candidate)
-		vote[addr.String()] = addrV.String()
+func (dc *DposContext) GetVote(addr common.Address) (map[string]VoteContext, error) {
+	vote := make(map[string]VoteContext)
+	candidateRLP := dc.voteTrie.Get(addr.Bytes())
+	if candidateRLP != nil {
+		var vc VoteContext
+		if err := rlp.DecodeBytes(candidateRLP, &vc); err != nil {
+			return vote, fmt.Errorf("failed to decode VoteContext: %s", err)
+		}
+		vote[addr.String()] = vc
 	}
 	return vote, nil
 }
 
-func (dc *DposContext) GetVotes() (map[string]string, error) {
-	vote := make(map[string]string)
+func (dc *DposContext) GetVotes() (map[string]VoteContext, error) {
+	vote := make(map[string]VoteContext)
 
 	voteTrie := dc.VoteTrie()
 	iterVote := trie.NewIterator(voteTrie.NodeIterator(nil))
@@ -561,10 +606,12 @@ func (dc *DposContext) GetVotes() (map[string]string, error) {
 		addrK := common.Address{}
 		addrK.SetBytes(iterVote.Key)
 
-		addrV := common.Address{}
-		addrV.SetBytes(iterVote.Value)
+		var vc VoteContext
+		if err := rlp.DecodeBytes(iterVote.Value, &vc); err != nil {
+			return vote, fmt.Errorf("failed to decode VoteContext: %s", err)
+		}
 
-		vote[addrK.String()] = addrV.String()
+		vote[addrK.String()] = vc
 
 		existVote = iterVote.Next()
 	}

@@ -236,7 +236,7 @@ func applyDposMessage(dposContext *types.DposContext, msg types.Message, statedb
 			}
 		}
 	case types.Delegate:
-		dposContext.Delegate(msg.From(), *(msg.To()))
+		dposContext.Delegate(msg.From(), *(msg.To()), header.Number, statedb.GetBalance(msg.From()))
 	case types.UnDelegate:
 		dposContext.UnDelegate(msg.From(), *(msg.To()))
 	default:
