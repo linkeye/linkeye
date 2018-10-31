@@ -168,9 +168,9 @@ func (api *API) GetMintCnts(maxcnt, number *rpc.BlockNumber) ([]types.MintCntAdd
 }
 
 // GetVote retrieves delegator to candidate at specified block
-func (api *API) GetVote(addr common.Address, number *rpc.BlockNumber) (map[string]VoteContext, error) {
+func (api *API) GetVote(addr common.Address, number *rpc.BlockNumber) (map[string]types.VoteContext, error) {
 	var header *types.Header
-	vote := make(map[string]VoteContext)
+	vote := make(map[string]types.VoteContext)
 	if number == nil || *number == rpc.LatestBlockNumber {
 		header = api.chain.CurrentHeader()
 	} else {
@@ -188,9 +188,9 @@ func (api *API) GetVote(addr common.Address, number *rpc.BlockNumber) (map[strin
 }
 
 // GetVotes retrieves all delegator to their candidate at specified block
-func (api *API) GetVotes(number *rpc.BlockNumber) (map[string]VoteContext, error) {
+func (api *API) GetVotes(number *rpc.BlockNumber) (map[string]types.VoteContext, error) {
 	var header *types.Header
-	votes := make(map[string]VoteContext)
+	votes := make(map[string]types.VoteContext)
 
 	if number == nil || *number == rpc.LatestBlockNumber {
 		header = api.chain.CurrentHeader()
