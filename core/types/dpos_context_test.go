@@ -1,6 +1,7 @@
 package types
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/linkeye/linkeye/common"
@@ -63,7 +64,7 @@ func TestDposContextKickoutCandidate(t *testing.T) {
 	assert.Nil(t, err)
 	for _, candidate := range candidates {
 		assert.Nil(t, dposContext.BecomeCandidate(candidate))
-		assert.Nil(t, dposContext.Delegate(candidate, candidate))
+		assert.Nil(t, dposContext.Delegate(candidate, candidate, big.NewInt(1), big.NewInt(1)))
 	}
 
 	kickIdx := 1
@@ -108,10 +109,10 @@ func TestDposContextDelegateAndUnDelegate(t *testing.T) {
 	for candidateIter.Next() {
 		candidateMap[string(candidateIter.Value)] = true
 	}
-	assert.NotNil(t, dposContext.Delegate(delegator, common.HexToAddress("0xab")))
+	assert.NotNil(t, dposContext.Delegate(delegator, common.HexToAddress("0xab"), big.NewInt(1), big.NewInt(1)))
 
 	// delegator delegate to old candidate
-	assert.Nil(t, dposContext.Delegate(delegator, candidate))
+	assert.Nil(t, dposContext.Delegate(delegator, candidate, big.NewInt(1), big.NewInt(1)))
 	delegateIter := trie.NewIterator(dposContext.delegateTrie.PrefixIterator(candidate.Bytes()))
 	if assert.True(t, delegateIter.Next()) {
 		assert.Equal(t, append(delegatePrefix, append(candidate.Bytes(), delegator.Bytes()...)...), delegateIter.Key)
@@ -124,7 +125,7 @@ func TestDposContextDelegateAndUnDelegate(t *testing.T) {
 	}
 
 	// delegator delegate to new candidate
-	assert.Nil(t, dposContext.Delegate(delegator, newCandidate))
+	assert.Nil(t, dposContext.Delegate(delegator, newCandidate, big.NewInt(1), big.NewInt(1)))
 	delegateIter = trie.NewIterator(dposContext.delegateTrie.PrefixIterator(candidate.Bytes()))
 	assert.False(t, delegateIter.Next())
 	delegateIter = trie.NewIterator(dposContext.delegateTrie.PrefixIterator(newCandidate.Bytes()))

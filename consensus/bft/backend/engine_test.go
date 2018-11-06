@@ -71,7 +71,7 @@ func getGenesisAndKeys(n int) (*core.Genesis, []*ecdsa.PrivateKey) {
 	genesis.Config = params.TestChainConfig
 	// force enable BFT engine
 	genesis.Config.BFT = &params.BFTConfig{}
-	genesis.Config.Ethash = nil
+	genesis.Config.DPOS = nil
 	genesis.Difficulty = defaultDifficulty
 	genesis.Nonce = emptyNonce.Uint64()
 	genesis.Mixhash = types.BFTDigest
@@ -105,7 +105,7 @@ func makeHeader(parent *types.Block, config *bft.Config) *types.Header {
 		ParentHash: parent.Hash(),
 		Number:     parent.Number().Add(parent.Number(), common.Big1),
 		GasLimit:   core.CalcGasLimit(parent),
-		GasUsed:    new(big.Int),
+		GasUsed:    new(big.Int).Uint64(),
 		Extra:      parent.Extra(),
 		Time:       new(big.Int).Add(parent.Time(), new(big.Int).SetUint64(config.BlockPeriod)),
 		Difficulty: defaultDifficulty,
@@ -122,7 +122,7 @@ func makeBlock(chain *core.BlockChain, engine *backend, parent *types.Block) *ty
 func makeBlockWithoutSeal(chain *core.BlockChain, engine *backend, parent *types.Block) *types.Block {
 	header := makeHeader(parent, engine.config)
 	engine.Prepare(chain, header)
-	state, _, _ := chain.StateAt(parent.Root())
+	state, _ := chain.StateAt(parent.Root())
 	block, _ := engine.Finalize(chain, header, state, nil, nil, nil)
 	return block
 }

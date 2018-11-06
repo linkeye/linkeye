@@ -48,7 +48,9 @@ var (
 var (
 	//epochLength = uint64(30000) // Default number of blocks after which to checkpoint and reset the pending votes
 	epochLength = uint64(30)
+	epochInterval = int64(epochLength) //alias for epochLength for test
 	blockPeriod = uint64(5) // Default minimum difference between two consecutive block's timestamps
+	blockInterval = int64(blockPeriod) //alias for blockPeriod for test
 
 	extraVanity = 32 // Fixed number of extra-data prefix bytes reserved for signer vanity
 	extraSeal   = 65 // Fixed number of extra-data suffix bytes reserved for signer seal
