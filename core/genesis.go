@@ -403,7 +403,7 @@ func initGenesisDposContext(g *Genesis, db letdb.Database) *types.DposContext {
 		dc.SetValidators(g.Config.DPOS.Validators)
 		var sa types.SortableAddresses
 		for _, v := range g.Config.DPOS.Validators {
-			sa = append(sa, &types.SortableAddress{v, big.NewInt(0)})
+			sa = append(sa, &types.SortableAddress{Address:v, Weight:big.NewInt(0)})
 		}
 		dc.SetSortableAddresses(sa)
 		for _, validator := range g.Config.DPOS.Validators {

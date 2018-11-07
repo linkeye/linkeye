@@ -137,7 +137,7 @@ func (ec *EpochContext) kickoutValidator() error {
 		}
 		if cnt < int64(epochLength)/maxValidatorSize/2 {
 			// not active validators need kickout
-			needKickoutValidators = append(needKickoutValidators, &types.SortableAddress{validator, big.NewInt(cnt)})
+			needKickoutValidators = append(needKickoutValidators, &types.SortableAddress{Address:validator, Weight:big.NewInt(cnt)})
 		}
 	}
 	// clear mintcnt trie
@@ -216,7 +216,7 @@ func (ec *EpochContext) tryElect(genesis, parent *types.Header) error {
 
 	candidates := types.SortableAddresses{}
 	for candidate, cnt := range votes {
-		candidates = append(candidates, &types.SortableAddress{candidate, cnt})
+		candidates = append(candidates, &types.SortableAddress{Address:candidate, Weight:cnt})
 	}
 	if len(candidates) < safeSize {
 		return errors.New("too few candidates")
