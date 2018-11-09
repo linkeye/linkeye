@@ -77,7 +77,6 @@ type txdataMarshaling struct {
 	GasLimit     hexutil.Uint64
 	Amount       *hexutil.Big
 	Payload      hexutil.Bytes
-	Type         TxType
 	V            *hexutil.Big
 	R            *hexutil.Big
 	S            *hexutil.Big
