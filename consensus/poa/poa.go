@@ -650,9 +650,12 @@ func (c *PoA) Finalize(chain consensus.ChainReader, header *types.Header, state 
 	// No block rewards in PoA, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)
+	header.DposContext = dposContext.ToProto()
 
 	// Assemble and return the final block for sealing
-	return types.NewBlock(header, txs, nil, receipts), nil
+	block := types.NewBlock(header, txs, nil, receipts)
+	block.DposContext = dposContext
+	return block, nil
 }
 
 // Authorize injects a private key into the consensus engine to mint new blocks

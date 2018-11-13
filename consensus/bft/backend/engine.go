@@ -396,9 +396,12 @@ func (sb *backend) Finalize(chain consensus.ChainReader, header *types.Header, s
 	// No block rewards in BFT, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
+	header.DposContext = dposContext.ToProto()
 
 	// Assemble and return the final block for sealing
-	return types.NewBlock(header, txs, nil, receipts), nil
+	block := types.NewBlock(header, txs, nil, receipts)
+	block.DposContext = dposContext
+	return block, nil
 }
 
 // Seal generates a new block for the given input block with the local miner's
