@@ -126,6 +126,10 @@ var (
 		Name:  "bft",
 		Usage: "BFT network: pre-configured bft network",
 	}
+	DBFTFlag = cli.BoolFlag{
+		Name:  "dbft",
+		Usage: "DBFT network: pre-configured dbft network",
+	}
 	DeveloperFlag = cli.BoolFlag{
 		Name:  "dev",
 		Usage: "Ephemeral proof-of-authority network with a pre-funded developer account, mining enabled",
@@ -492,6 +496,18 @@ var (
 		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
 		Value: let.DefaultConfig.BFT.BlockPeriod,
 	}
+
+	// DBFT settings
+	DBFTRequestTimeoutFlag = cli.Uint64Flag{
+		Name:  "dbft.requesttimeout",
+		Usage: "Timeout for each DBFT round in milliseconds",
+		Value: let.DefaultConfig.DBFT.RequestTimeout,
+	}
+	DBFTBlockPeriodFlag = cli.Uint64Flag{
+		Name:  "dbft.blockperiod",
+		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
+		Value: let.DefaultConfig.DBFT.BlockPeriod,
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -504,6 +520,9 @@ func MakeDataDir(ctx *cli.Context) string {
 		}
 		if ctx.GlobalBool(BFTFlag.Name) {
 			return filepath.Join(path, "bft")
+		}
+		if ctx.GlobalBool(DBFTFlag.Name) {
+			return filepath.Join(path, "dbft")
 		}
 		if ctx.GlobalBool(POAFlag.Name) {
 			return filepath.Join(path, "poa")
@@ -565,6 +584,8 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 		urls = params.POABootnodes
 	case ctx.GlobalBool(BFTFlag.Name):
 		urls = params.BFTBootnodes
+	case ctx.GlobalBool(DBFTFlag.Name):
+		urls = params.DBFTBootnodes
 	case cfg.BootstrapNodes != nil:
 		return // already set, don't apply defaults.
 	}
@@ -851,6 +872,8 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "poa")
 	case ctx.GlobalBool(BFTFlag.Name):
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "bft")
+	case ctx.GlobalBool(DBFTFlag.Name):
+		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "dbft")
 	}
 	if ctx.GlobalIsSet(KeyStoreDirFlag.Name) {
 		cfg.KeyStoreDir = ctx.GlobalString(KeyStoreDirFlag.Name)
@@ -955,7 +978,7 @@ func checkExclusive(ctx *cli.Context, args ...interface{}) {
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *let.Config) {
 	// Avoid conflicting network flags
-	checkExclusive(ctx, DeveloperFlag, TestnetFlag, POAFlag, BFTFlag)
+	checkExclusive(ctx, DeveloperFlag, TestnetFlag, POAFlag, BFTFlag, DBFTFlag)
 	checkExclusive(ctx, FastSyncFlag, LightModeFlag, SyncModeFlag)
 	checkExclusive(ctx, LightServFlag, LightModeFlag)
 	checkExclusive(ctx, LightServFlag, SyncModeFlag, "light")
@@ -1032,6 +1055,11 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *let.Config) {
 			cfg.NetworkId = 5
 		}
 		cfg.Genesis = core.DefaultBFTGenesisBlock()
+	case ctx.GlobalBool(DBFTFlag.Name):
+		if !ctx.GlobalIsSet(NetworkIdFlag.Name) {
+			cfg.NetworkId = 6
+		}
+		cfg.Genesis = core.DefaultDBFTGenesisBlock()
 	case ctx.GlobalBool(DeveloperFlag.Name):
 		// Create new developer account or reuse existing one
 		var (
@@ -1147,6 +1175,8 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 		genesis = core.DefaultPOAGenesisBlock()
 	case ctx.GlobalBool(BFTFlag.Name):
 		genesis = core.DefaultBFTGenesisBlock()
+	case ctx.GlobalBool(DBFTFlag.Name):
+		genesis = core.DefaultDBFTGenesisBlock()
 	case ctx.GlobalBool(DeveloperFlag.Name):
 		Fatalf("Developer chains are ephemeral")
 	}

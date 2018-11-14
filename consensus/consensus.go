@@ -116,3 +116,8 @@ type BFT interface {
 	// Stop stops the engine
 	Stop() error
 }
+
+// DBFT is a consensus engine to avoid byzantine failure
+type DBFT interface {
+	BFT
+}

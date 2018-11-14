@@ -9,6 +9,7 @@ import (
 	"github.com/linkeye/linkeye/common"
 	"github.com/linkeye/linkeye/common/hexutil"
 	"github.com/linkeye/linkeye/consensus/bft"
+	"github.com/linkeye/linkeye/consensus/dbft"
 	"github.com/linkeye/linkeye/core"
 	"github.com/linkeye/linkeye/let/downloader"
 	"github.com/linkeye/linkeye/let/gasprice"
@@ -32,6 +33,7 @@ var DefaultConfig = Config{
 		Percentile: 60,
 	},
 	BFT: *bft.DefaultConfig,
+	DBFT: *dbft.DefaultConfig,
 }
 
 func init() {
@@ -83,6 +85,9 @@ type Config struct {
 
 	// BFT options
 	BFT bft.Config
+	
+	// DBFT options
+	DBFT dbft.Config
 
 	// Miscellaneous options
 	DocRoot string `toml:"-"`

@@ -16,6 +16,7 @@ var Modules = map[string]string{
 	"swarmfs":    SWARMFS_JS,
 	"txpool":     TxPool_JS,
 	"bft":        BFT_JS,
+	"dbft":        DBFT_JS,
 }
 
 const Chequebook_JS = `
@@ -722,6 +723,53 @@ web3._extend({
 		new web3._extend.Property({
 			name: 'candidates',
 			getter: 'bft_candidates'
+		}),
+	]
+});
+`
+const DBFT_JS = `
+web3._extend({
+	property: 'dbft',
+	methods:
+	[
+		new web3._extend.Method({
+			name: 'getSnapshot',
+			call: 'dbft_getSnapshot',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'getSnapshotAtHash',
+			call: 'dbft_getSnapshotAtHash',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'getValidators',
+			call: 'dbft_getValidators',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'getValidatorsAtHash',
+			call: 'dbft_getValidatorsAtHash',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'propose',
+			call: 'dbft_propose',
+			params: 2
+		}),
+		new web3._extend.Method({
+			name: 'discard',
+			call: 'dbft_discard',
+			params: 1
+		})
+	],
+	properties:
+	[
+		new web3._extend.Property({
+			name: 'candidates',
+			getter: 'dbft_candidates'
 		}),
 	]
 });

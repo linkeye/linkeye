@@ -15,6 +15,8 @@ import (
 	"github.com/linkeye/linkeye/consensus"
 	"github.com/linkeye/linkeye/consensus/bft"
 	bftBackend "github.com/linkeye/linkeye/consensus/bft/backend"
+	dbft "github.com/linkeye/linkeye/consensus/dbft"
+	dbftBackend "github.com/linkeye/linkeye/consensus/dbft/backend"
 	"github.com/linkeye/linkeye/consensus/dpos"
 	"github.com/linkeye/linkeye/consensus/poa"
 	"github.com/linkeye/linkeye/core"
@@ -127,6 +129,11 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		eth.etherbase = crypto.PubkeyToAddress(ctx.NodeKey().PublicKey)
 	}
 
+	// force to set the dbft etherbase to node key address
+	if chainConfig.DBFT != nil {
+		eth.etherbase = crypto.PubkeyToAddress(ctx.NodeKey().PublicKey)
+	}
+
 	log.Info("Initialising Linkeye protocol", "versions", ProtocolVersions, "network", config.NetworkId)
 
 	if !config.SkipBcVersionCheck {
@@ -220,6 +227,15 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *Config, chainConfig
 		}
 		config.BFT.ProposerPolicy = bft.ProposerPolicy(chainConfig.BFT.ProposerPolicy)
 		return bftBackend.New(&config.BFT, ctx.NodeKey(), db)
+	}
+
+	// If DBFT is requested, set it up
+	if chainConfig.DBFT != nil {
+		if chainConfig.DBFT.Epoch != 0 {
+			config.DBFT.Epoch = chainConfig.DBFT.Epoch
+		}
+		config.DBFT.ProposerPolicy = dbft.ProposerPolicy(chainConfig.DBFT.ProposerPolicy)
+		return dbftBackend.New(&config.DBFT, ctx.NodeKey(), db)
 	}
 
 	log.Error("no engine")

@@ -89,14 +89,33 @@ var (
 		},
 	}
 
+	// DBFTChainConfig contains the chain parameters to run a node on the DBFT test network.
+	DBFTChainConfig = &ChainConfig{
+		ChainId:        big.NewInt(8058),
+		HomesteadBlock: big.NewInt(1),
+		DAOForkBlock:   nil,
+		DAOForkSupport: true,
+		EIP150Block:    big.NewInt(2),
+		EIP150Hash:     common.HexToHash("0x9b095b36c15eaf13044373aef8ee0bd3a382a5abb92e402afa44b8249c3a90e9"),
+		EIP155Block:    big.NewInt(3),
+		EIP158Block:    big.NewInt(3),
+		ByzantiumBlock: big.NewInt(math.MaxInt64), // Don't enable yet
+
+		DBFT: &DBFTConfig{
+			Epoch: 30000, 
+			ProposerPolicy: 0,
+		},
+	}
+
 	// AllDPOSProtocolChanges contains every protocol change (EIPs) introduced
 	// and accepted by the Ethereum core developers into the Clique consensus.
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
-	AllDPOSProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, &DPOSConfig{Period: 0, Epoch: 30000}, nil, nil}
-	AllPOAProtocolChanges  = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, &POAConfig{Period: 0, Epoch: 30000}, nil}
-	TestChainConfig        = &ChainConfig{big.NewInt(1), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, &DPOSConfig{Period: 0, Epoch: 30000}, nil, nil}
+	AllDPOSProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, &DPOSConfig{Period: 0, Epoch: 30000}, nil, nil, nil}
+	AllPOAProtocolChanges  = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, &POAConfig{Period: 0, Epoch: 30000}, nil, nil}
+	AllDBFTProtocolChanges  = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, &DBFTConfig{Epoch: 30000, ProposerPolicy:0,}}
+	TestChainConfig        = &ChainConfig{big.NewInt(1), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, &DPOSConfig{Period: 0, Epoch: 30000}, nil, nil, nil}
 	TestRules              = TestChainConfig.Rules(new(big.Int))
 )
 
@@ -127,6 +146,7 @@ type ChainConfig struct {
 	DPOS *DPOSConfig `json:"dpos,omitempty"`
 	POA  *POAConfig  `json:"poa,omitempty"`
 	BFT  *BFTConfig  `json:"bft,omitempty"`
+	DBFT *DBFTConfig `json:"dbft,omitempty"`
 }
 
 // CliqueConfig is the consensus engine configs for proof-of-authority based sealing.
@@ -163,6 +183,17 @@ func (c *BFTConfig) String() string {
 	return "bft"
 }
 
+// DBFTConfig is the consensus engine configs for DBFT based sealing.
+type DBFTConfig struct {
+	Epoch          uint64 `json:"epoch"`  // Epoch length to reset votes and checkpoint
+	ProposerPolicy uint64 `json:"policy"` // The policy for proposer selection
+}
+
+// String implements the stringer interface, returning the consensus engine details.
+func (c *DBFTConfig) String() string {
+	return "dbft"
+}
+
 // String implements the fmt.Stringer interface.
 func (c *ChainConfig) String() string {
 	var engine interface{}
@@ -173,6 +204,8 @@ func (c *ChainConfig) String() string {
 		engine = c.POA
 	case c.BFT != nil:
 		engine = c.BFT
+	case c.DBFT != nil:
+		engine = c.DBFT
 	default:
 		engine = "unknown"
 	}

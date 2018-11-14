@@ -883,8 +883,10 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 		return NonStatTy, err
 	}
 
-	if _, err := block.DposContext.Commit(); err != nil {
-		return NonStatTy, err
+	if block.DposContext != nil {
+		if _, err := block.DposContext.Commit(); err != nil {
+			return NonStatTy, err
+		}
 	}
 
 	root, err := state.Commit(bc.chainConfig.IsEIP158(block.Number()))

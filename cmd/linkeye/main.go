@@ -86,6 +86,7 @@ var (
 		utils.TestnetFlag,
 		utils.POAFlag,
 		utils.BFTFlag,
+		utils.DBFTFlag,
 		utils.VMEnableDebugFlag,
 		utils.NetworkIdFlag,
 		utils.RPCCORSDomainFlag,
