@@ -102,8 +102,11 @@ var (
 		ByzantiumBlock: big.NewInt(math.MaxInt64), // Don't enable yet
 
 		DBFT: &DBFTConfig{
-			Epoch: 30000, 
+			Period: 5,
+			//Epoch:          30000,
+			Epoch:          30,
 			ProposerPolicy: 0,
+			Validators: []common.Address{common.HexToAddress("0x1250153d47f29446538d68b1acc20c89c786fb8f")},
 		},
 	}
 
@@ -114,7 +117,7 @@ var (
 	// adding flags to the config to also have to set these fields.
 	AllDPOSProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, &DPOSConfig{Period: 0, Epoch: 30000}, nil, nil, nil}
 	AllPOAProtocolChanges  = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, &POAConfig{Period: 0, Epoch: 30000}, nil, nil}
-	AllDBFTProtocolChanges  = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, &DBFTConfig{Epoch: 30000, ProposerPolicy:0,}}
+	AllDBFTProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, &DBFTConfig{Epoch: 30000, ProposerPolicy: 0}}
 	TestChainConfig        = &ChainConfig{big.NewInt(1), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, &DPOSConfig{Period: 0, Epoch: 30000}, nil, nil, nil}
 	TestRules              = TestChainConfig.Rules(new(big.Int))
 )
@@ -185,8 +188,10 @@ func (c *BFTConfig) String() string {
 
 // DBFTConfig is the consensus engine configs for DBFT based sealing.
 type DBFTConfig struct {
-	Epoch          uint64 `json:"epoch"`  // Epoch length to reset votes and checkpoint
-	ProposerPolicy uint64 `json:"policy"` // The policy for proposer selection
+	Period         uint64           `json:"period"`     // Number of seconds between blocks to enforce
+	Epoch          uint64           `json:"epoch"`      // Epoch length to reset votes and checkpoint
+	Validators     []common.Address `json:"validators"` // Genesis validator list
+	ProposerPolicy uint64           `json:"policy"`     // The policy for proposer selection
 }
 
 // String implements the stringer interface, returning the consensus engine details.
