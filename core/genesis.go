@@ -429,5 +429,24 @@ func initGenesisDposContext(g *Genesis, db letdb.Database) *types.DposContext {
 			})
 		}
 	}
+
+	if g.Config != nil && g.Config.DBFT != nil && g.Config.DBFT.Validators != nil {
+		dc.SetValidators(g.Config.DBFT.Validators)
+		var sa types.SortableAddresses
+		for _, v := range g.Config.DBFT.Validators {
+			sa = append(sa, &types.SortableAddress{Address: v, Weight: big.NewInt(0)})
+		}
+		dc.SetSortableAddresses(sa)
+		for _, validator := range g.Config.DBFT.Validators {
+			dc.DelegateTrie().TryUpdate(append(validator.Bytes(), validator.Bytes()...), validator.Bytes())
+			dc.SetCandidateContext(types.CandidateContext{
+				Addr:        validator,
+				State:       types.LoginState,
+				BlockNumber: big.NewInt(0),
+				Score:       big.NewInt(0),
+			})
+		}
+	}
+
 	return dc
 }
