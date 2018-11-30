@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/linkeye/linkeye/common"
+	"github.com/linkeye/linkeye/common/hexutil"
 	"github.com/linkeye/linkeye/crypto/sha3"
 	"github.com/linkeye/linkeye/letdb"
 	"github.com/linkeye/linkeye/log"
@@ -30,6 +31,10 @@ type CandidateContext struct {
 	State       CoinState      `json:"state" gencodec:"required"`
 	BlockNumber *big.Int       `json:"blocknumber" gencodec:"required"`
 	Score       *big.Int       `json:"score" gencodec:"required"`
+}
+
+func (cc *CandidateContext) String() string {
+	return fmt.Sprintf("Addr: %v, State: %v, BlockNumber: %v, Score: %v", cc.Addr.String(), cc.State, cc.BlockNumber, cc.Score)
 }
 
 // SortCandidateContexts, p[0].score > p[1].score > [p...].score
@@ -182,22 +187,27 @@ func NewDposContextFromProto(db letdb.Database, ctxProto *DposContextProto) (*Dp
 	tdb := trie.NewDatabase(db)
 	epochTrie, err := NewEpochTrie(ctxProto.EpochHash, tdb)
 	if err != nil {
+		log.Error("NewEpochTrie:", "error", err)
 		return nil, err
 	}
 	delegateTrie, err := NewDelegateTrie(ctxProto.DelegateHash, tdb)
 	if err != nil {
+		log.Error("NewDelegateTrie:", "error", err)
 		return nil, err
 	}
 	voteTrie, err := NewVoteTrie(ctxProto.VoteHash, tdb)
 	if err != nil {
+		log.Error("NewVoteTrie:", "error", err)
 		return nil, err
 	}
 	candidateTrie, err := NewCandidateTrie(ctxProto.CandidateHash, tdb)
 	if err != nil {
+		log.Error("NewCandidateTrie:", "error", err)
 		return nil, err
 	}
 	mintCntTrie, err := NewMintCntTrie(ctxProto.MintCntHash, tdb)
 	if err != nil {
+		log.Error("NewMintCntTrie:", "error", err)
 		return nil, err
 	}
 	return &DposContext{
@@ -252,22 +262,30 @@ func (d *DposContext) FromProto(dcp *DposContextProto) error {
 	var err error
 	d.epochTrie, err = NewEpochTrie(dcp.EpochHash, d.db)
 	if err != nil {
+		log.Error("NewEpochTrie:", "error", err)
 		return err
 	}
 	d.delegateTrie, err = NewDelegateTrie(dcp.DelegateHash, d.db)
 	if err != nil {
+		log.Error("NewDelegateTrie:", "error", err)
 		return err
 	}
 	d.candidateTrie, err = NewCandidateTrie(dcp.CandidateHash, d.db)
 	if err != nil {
+		log.Error("NewCandidateTrie:", "error", err)
 		return err
 	}
 	d.voteTrie, err = NewVoteTrie(dcp.VoteHash, d.db)
 	if err != nil {
+		log.Error("NewVoteTrie:", "error", err)
 		return err
 	}
 	d.mintCntTrie, err = NewMintCntTrie(dcp.MintCntHash, d.db)
-	return err
+	if err != nil {
+		log.Error("NewMintCntTrie:", "error", err)
+		return err
+	}
+	return nil
 }
 
 type DposContextProto struct {
@@ -503,7 +521,7 @@ func (dc *DposContext) GetCandidates() ([]CandidateContext, error) {
 func (dc *DposContext) GetCandidateContext(candidateAddr common.Address) (CandidateContext, error) {
 	var cc CandidateContext
 	ccRLP := dc.candidateTrie.Get(candidateAddr.Bytes())
-	log.Info("GetCandidateContext:", "candidateAddr", candidateAddr.String(), "ccRLP", ccRLP)
+	log.Info("GetCandidateContext:", "candidateAddr", candidateAddr.String(), "ccRLP", hexutil.Encode(ccRLP))
 	if len(ccRLP) == 0 {
 		return cc, nil
 	}
@@ -515,9 +533,9 @@ func (dc *DposContext) GetCandidateContext(candidateAddr common.Address) (Candid
 }
 
 func (dc *DposContext) SetCandidateContext(cc CandidateContext) error {
-	log.Info("SetCandidateContext:", "cc", cc)
+	log.Info("SetCandidateContext:", "cc", cc.String())
 	ccRLP, err := rlp.EncodeToBytes(cc)
-	log.Info("SetCandidateContext:", "key", cc.Addr.Bytes(), "ccRLP", ccRLP)
+	log.Info("SetCandidateContext:", "key", cc.Addr.String(), "ccRLP", hexutil.Encode(ccRLP))
 	if err != nil {
 		log.Error("failed to encode candidate contexts to rlp bytes:", "error", err)
 		return fmt.Errorf("failed to encode candidate context to rlp bytes: %s", err)

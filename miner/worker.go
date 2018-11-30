@@ -193,9 +193,12 @@ func (self *worker) start() {
 
 	atomic.StoreInt32(&self.mining, 1)
 
-	atomic.StoreInt32(&self.mining, 1)
 	if bft, ok := self.engine.(consensus.BFT); ok {
+		log.Info("start BFT")
 		bft.Start(self.chain, self.chain.CurrentBlock, self.chain.HasBadBlock)
+	} else if dbft, ok := self.engine.(consensus.DBFT); ok {
+		log.Info("start DBFT")
+		dbft.Start(self.chain, self.chain.CurrentBlock, self.chain.HasBadBlock)
 	}
 
 	// spin up agents
@@ -216,7 +219,11 @@ func (self *worker) stop() {
 	}
 
 	if bft, ok := self.engine.(consensus.BFT); ok {
+		log.Info("stop BFT")
 		bft.Stop()
+	} else if dbft, ok := self.engine.(consensus.DBFT); ok {
+		log.Info("stop DBFT")
+		dbft.Stop()
 	}
 
 	atomic.StoreInt32(&self.mining, 0)
@@ -367,11 +374,13 @@ func (self *worker) push(work *Work) {
 func (self *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	state, err := self.chain.StateAt(parent.Root())
 	if err != nil {
+		log.Error("makeCurrent stateAt", "err", err)
 		return err
 	}
 
 	dposContext, err := types.NewDposContextFromProto(self.chainDb, parent.Header().DposContext)
 	if err != nil {
+		log.Error("makeCurrent NewDposContextFromProto", "err", err)
 		return err
 	}
 

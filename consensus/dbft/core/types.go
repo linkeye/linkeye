@@ -6,6 +6,9 @@ import (
 
 	"github.com/linkeye/linkeye/common"
 	"github.com/linkeye/linkeye/rlp"
+	"github.com/linkeye/linkeye/log"
+	"github.com/linkeye/linkeye/common/hexutil"
+	bft "github.com/linkeye/linkeye/consensus/dbft"
 )
 
 type Engine interface {
@@ -66,6 +69,18 @@ type message struct {
 	CommittedSeal []byte
 }
 
+func (m *message) MsgStr() string {
+	return hexutil.Encode(m.Msg)
+}
+
+func (m *message) SignatureStr() string {
+	return hexutil.Encode(m.Signature)
+}
+
+func (m *message) CommittedSealStr() string {
+	return hexutil.Encode(m.CommittedSeal)
+}
+
 // ==============================================
 //
 // define the functions that needs to be provided for rlp Encoder/Decoder.
@@ -99,6 +114,7 @@ func (m *message) DecodeRLP(s *rlp.Stream) error {
 func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.Address, error)) error {
 	// Decode message
 	err := rlp.DecodeBytes(b, &m)
+	log.Info("FromPayload", "m", m.String())
 	if err != nil {
 		return err
 	}
@@ -136,7 +152,28 @@ func (m *message) Decode(val interface{}) error {
 }
 
 func (m *message) String() string {
-	return fmt.Sprintf("{Code: %v, Address: %v}", m.Code, m.Address.String())
+	// Decode PRE-PREPARE
+	if m.Code == msgPreprepare {
+		var preprepare *bft.Preprepare
+		m.Decode(interface{}(&preprepare))
+		return fmt.Sprintf("{Code: %v, Address: %v, preprepare.View: %v, Signature: %v, CommittedSeal: %v}", m.Code, m.Address.String(), preprepare.View, m.SignatureStr(), m.CommittedSealStr())
+	} else if m.Code == msgPrepare {
+		var subject *bft.Subject
+		m.Decode(&subject)
+		return fmt.Sprintf("{Code: %v, Address: %v, prepare: %v, Signature: %v, CommittedSeal: %v}", m.Code, m.Address.String(), subject, m.SignatureStr(), m.CommittedSealStr())
+	} else if m.Code == msgCommit {
+		var subject *bft.Subject
+		m.Decode(&subject)
+		return fmt.Sprintf("{Code: %v, Address: %v, commit: %v, Signature: %v, CommittedSeal: %v}", m.Code, m.Address.String(), subject, m.SignatureStr(), m.CommittedSealStr())
+	} else if m.Code == msgRoundChange {
+		var subject *bft.Subject
+		m.Decode(&subject)
+		return fmt.Sprintf("{Code: %v, Address: %v, roundChange: %v, Signature: %v, CommittedSeal: %v}", m.Code, m.Address.String(), subject, m.SignatureStr(), m.CommittedSealStr())
+	} else if m.Code == msgAll  {
+
+	}
+
+	return fmt.Sprintf("{Code: %v, Address: %v, Msg: %v, Signature: %v, CommittedSeal: %v}", m.Code, m.Address.String(), m.Msg, m.SignatureStr(), m.CommittedSealStr())
 }
 
 // ==============================================

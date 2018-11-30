@@ -16,6 +16,8 @@ import (
 	"github.com/linkeye/linkeye/common/mclock"
 	"github.com/linkeye/linkeye/consensus"
 	"github.com/linkeye/linkeye/consensus/dpos"
+	//"github.com/linkeye/linkeye/consensus/bft"
+	//"github.com/linkeye/linkeye/consensus/dbft"
 	"github.com/linkeye/linkeye/core/state"
 	"github.com/linkeye/linkeye/core/types"
 	"github.com/linkeye/linkeye/core/vm"
@@ -1051,6 +1053,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		}
 		// If the header is a banned one, straight out abort
 		if BadHashes[block.Hash()] {
+			log.Error("BadHashes", "block.Hash()", block.Hash())
 			bc.reportBlock(block, nil, ErrBlacklistedHash)
 			return i, events, coalescedLogs, ErrBlacklistedHash
 		}
@@ -1134,22 +1137,26 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 
 		block.DposContext, err = types.NewDposContextFromProto(bc.db, parent.Header().DposContext)
 		if err != nil {
+			log.Error("NewDposContextFromProto", "err", err)
 			return i, events, coalescedLogs, err
 		}
 
 		state, err := state.New(parent.Root(), bc.stateCache)
 		if err != nil {
+			log.Error("State.New", "err", err)
 			return i, events, coalescedLogs, err
 		}
 		// Process block using the parent state as reference point.
 		receipts, logs, usedGas, err := bc.processor.Process(block, state, bc.vmConfig)
 		if err != nil {
+			log.Error("bc.processor.Process", "err", err)
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}
 		// Validate the state using the default validator
 		err = bc.Validator().ValidateState(block, parent, state, receipts, usedGas)
 		if err != nil {
+			log.Error("bc.Validator().ValidateState", "err", err)
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}
@@ -1157,6 +1164,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		// Validate the dpos state using the default validator
 		err = bc.Validator().ValidateDposState(block)
 		if err != nil {
+			log.Error("ValidateDposState", "err", err)
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}
@@ -1165,16 +1173,18 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		if isDpos {
 			err = dposEngine.VerifySeal(bc, block.Header())
 			if err != nil {
+				log.Error("dposEngine.VerifySeal", "err", err)
 				bc.reportBlock(block, receipts, err)
 				return i, events, coalescedLogs, err
 			}
 		}
-
+		
 		proctime := time.Since(bstart)
 
 		// Write the block to the chain and get the status.
 		status, err := bc.WriteBlockWithState(block, receipts, state)
 		if err != nil {
+			log.Error("bc.WriteBlockWithState", "err", err)
 			return i, events, coalescedLogs, err
 		}
 		switch status {

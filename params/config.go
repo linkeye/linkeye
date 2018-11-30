@@ -106,7 +106,12 @@ var (
 			//Epoch:          30000,
 			Epoch:          30,
 			ProposerPolicy: 0,
-			Validators: []common.Address{common.HexToAddress("0x1250153d47f29446538d68b1acc20c89c786fb8f")},
+			Validators: []common.Address{
+				common.HexToAddress("0x1250153d47f29446538d68b1acc20c89c786fb8f"),
+				common.HexToAddress("0xbde0b953dfa28e31449373f739fddfaf6456025e"),
+				common.HexToAddress("0x37089dabe8916b26b3f0f293bfbd314578cf30cf"),
+				common.HexToAddress("0xa487489E4bB7da1a493BFDF43204e051cAE4df60"),
+			},
 		},
 	}
 

@@ -750,6 +750,12 @@ web3._extend({
 			inputFormatter: [null]
 		}),
 		new web3._extend.Method({
+			name: 'getDposValidators',
+			call: 'dbft_getDposValidators',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
 			name: 'getValidatorsAtHash',
 			call: 'dbft_getValidatorsAtHash',
 			params: 1
@@ -763,7 +769,55 @@ web3._extend({
 			name: 'discard',
 			call: 'dbft_discard',
 			params: 1
-		})
+		}),
+		new web3._extend.Method({
+			name: 'getDposCandidates',
+			call: 'dbft_getDposCandidates',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getDposCandidate',
+			call: 'dbft_getDposCandidate',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getSortableAddresses',
+			call: 'dbft_getSortableAddresses',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getMintCnt',
+			call: 'dbft_getMintCnt',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getMintCnts',
+			call: 'dbft_getMintCnts',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter,web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getVote',
+			call: 'dbft_getVote',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getVotes',
+			call: 'dbft_getVotes',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getCFDs',
+			call: 'dbft_getCFDs',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
+		}),
 	],
 	properties:
 	[

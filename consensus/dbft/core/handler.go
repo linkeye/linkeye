@@ -122,9 +122,12 @@ func (c *core) handleMsg(payload []byte) error {
 	// Decode message and check its signature
 	msg := new(message)
 	if err := msg.FromPayload(payload, c.validateFn); err != nil {
+		logger.Error("err handleMsg", "msg", msg)
 		logger.Error("Failed to decode message from payload", "err", err)
 		return err
 	}
+
+	logger.Info("handleMsg", "msg", msg)
 
 	// Only accept message if the address is valid
 	_, src := c.valSet.GetByAddress(msg.Address)

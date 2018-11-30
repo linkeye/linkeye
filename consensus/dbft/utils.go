@@ -39,6 +39,10 @@ func CheckValidatorSignature(valSet ValidatorSet, data []byte, sig []byte) (comm
 	if _, val := valSet.GetByAddress(signer); val != nil {
 		return val.Address(), nil
 	}
+	
+
+	log.Info("CheckValidatorSignature", "signer", signer)
+	log.Info(" ", "valSet", valSet)
 
 	return common.Address{}, ErrUnauthorizedAddress
 }

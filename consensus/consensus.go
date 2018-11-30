@@ -119,5 +119,11 @@ type BFT interface {
 
 // DBFT is a consensus engine to avoid byzantine failure
 type DBFT interface {
-	BFT
+	Engine
+
+	// Start starts the engine
+	Start(chain ChainReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool) error
+
+	// Stop stops the engine
+	Stop() error
 }

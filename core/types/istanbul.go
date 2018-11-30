@@ -3,6 +3,8 @@ package types
 import (
 	"errors"
 	"io"
+	"fmt"
+	//"strings"
 
 	"github.com/linkeye/linkeye/common"
 	"github.com/linkeye/linkeye/rlp"
@@ -47,6 +49,21 @@ func (ist *BFTExtra) DecodeRLP(s *rlp.Stream) error {
 	}
 	ist.Validators, ist.Seal, ist.CommittedSeal = bftExtra.Validators, bftExtra.Seal, bftExtra.CommittedSeal
 	return nil
+}
+
+func (ist *BFTExtra) String() string {
+	var s string
+	for i, v := range ist.Validators {
+		s += "v" + fmt.Sprintf("%v", i) + ":" + v.String() + " " 
+	}
+
+	s += "len(seal)" + ":" + fmt.Sprintf("%v", len(ist.Seal)) + " "
+
+	for i, v := range ist.CommittedSeal {
+		s += "CommittedSeal" + fmt.Sprintf("%v", i) + ":length" + fmt.Sprintf("%v", len(v))+ " "  
+	}
+
+	return s
 }
 
 // ExtractBFTExtra extracts all values of the BFTExtra from the header. It returns an

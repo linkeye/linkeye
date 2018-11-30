@@ -347,7 +347,8 @@ func DefaultBFTGenesisBlock() *Genesis {
 	return &Genesis{
 		Config:     params.BFTChainConfig,
 		Timestamp:  1496993285,
-		ExtraData:  hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f85ad5941250153d47f29446538d68b1acc20c89c786fb8fb8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
+		//ExtraData:  hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f85ad5941250153d47f29446538d68b1acc20c89c786fb8fb8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
+		ExtraData:  hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f885f83f941250153d47f29446538d68b1acc20c89c786fb8f94bde0b953dfa28e31449373f739fddfaf6456025e9437089dabe8916b26b3f0f293bfbd314578cf30cfb8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
 		GasLimit:   500000000,
 		Difficulty: big.NewInt(1),
 		Mixhash:    common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
@@ -360,7 +361,7 @@ func DefaultDBFTGenesisBlock() *Genesis {
 	return &Genesis{
 		Config:     params.DBFTChainConfig,
 		Timestamp:  1496993285,
-		ExtraData:  hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f85ad5941250153d47f29446538d68b1acc20c89c786fb8fb8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
+		ExtraData:  hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f89af854941250153d47f29446538d68b1acc20c89c786fb8f94bde0b953dfa28e31449373f739fddfaf6456025e9437089dabe8916b26b3f0f293bfbd314578cf30cf94a487489e4bb7da1a493bfdf43204e051cae4df60b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
 		GasLimit:   500000000,
 		Difficulty: big.NewInt(1),
 		Mixhash:    common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
@@ -416,10 +417,29 @@ func initGenesisDposContext(g *Genesis, db letdb.Database) *types.DposContext {
 		dc.SetValidators(g.Config.DPOS.Validators)
 		var sa types.SortableAddresses
 		for _, v := range g.Config.DPOS.Validators {
-			sa = append(sa, &types.SortableAddress{Address:v, Weight:big.NewInt(0)})
+			sa = append(sa, &types.SortableAddress{Address: v, Weight: big.NewInt(0)})
 		}
 		dc.SetSortableAddresses(sa)
 		for _, validator := range g.Config.DPOS.Validators {
+			dc.DelegateTrie().TryUpdate(append(validator.Bytes(), validator.Bytes()...), validator.Bytes())
+			dc.SetCandidateContext(types.CandidateContext{
+				Addr:        validator,
+				State:       types.LoginState,
+				BlockNumber: big.NewInt(0),
+				Score:       big.NewInt(0),
+			})
+		}
+	}
+
+	if g.Config != nil && g.Config.DBFT != nil && g.Config.DBFT.Validators != nil {
+		log.Info("Writing default DBFT validators!")
+		dc.SetValidators(g.Config.DBFT.Validators)
+		var sa types.SortableAddresses
+		for _, v := range g.Config.DBFT.Validators {
+			sa = append(sa, &types.SortableAddress{Address: v, Weight: big.NewInt(0)})
+		}
+		dc.SetSortableAddresses(sa)
+		for _, validator := range g.Config.DBFT.Validators {
 			dc.DelegateTrie().TryUpdate(append(validator.Bytes(), validator.Bytes()...), validator.Bytes())
 			dc.SetCandidateContext(types.CandidateContext{
 				Addr:        validator,
