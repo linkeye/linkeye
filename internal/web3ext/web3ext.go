@@ -689,7 +689,7 @@ web3._extend({
 			name: 'getSnapshot',
 			call: 'bft_getSnapshot',
 			params: 1,
-			inputFormatter: [null]
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
 		}),
 		new web3._extend.Method({
 			name: 'getSnapshotAtHash',
@@ -736,7 +736,7 @@ web3._extend({
 			name: 'getSnapshot',
 			call: 'dbft_getSnapshot',
 			params: 1,
-			inputFormatter: [null]
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
 		}),
 		new web3._extend.Method({
 			name: 'getSnapshotAtHash',
