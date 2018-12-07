@@ -221,17 +221,23 @@ func NewDposContextFromProto(db letdb.Database, ctxProto *DposContextProto) (*Dp
 }
 
 func (d *DposContext) Copy() *DposContext {
+	if d.epochTrie == nil || d.delegateTrie == nil || d.voteTrie == nil || d.candidateTrie == nil || d.mintCntTrie == nil || d.db == nil {
+		log.Error("exist nil", "d", *d)
+		return &DposContext{}
+	}
 	epochTrie := *d.epochTrie
 	delegateTrie := *d.delegateTrie
 	voteTrie := *d.voteTrie
 	candidateTrie := *d.candidateTrie
 	mintCntTrie := *d.mintCntTrie
+	db := *d.db
 	return &DposContext{
 		epochTrie:     &epochTrie,
 		delegateTrie:  &delegateTrie,
 		voteTrie:      &voteTrie,
 		candidateTrie: &candidateTrie,
 		mintCntTrie:   &mintCntTrie,
+		db: &db,
 	}
 }
 
