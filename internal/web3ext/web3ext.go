@@ -747,13 +747,13 @@ web3._extend({
 			name: 'getValidators',
 			call: 'dbft_getValidators',
 			params: 1,
-			inputFormatter: [null]
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
 		}),
 		new web3._extend.Method({
 			name: 'getDposValidators',
 			call: 'dbft_getDposValidators',
 			params: 1,
-			inputFormatter: [null]
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
 		}),
 		new web3._extend.Method({
 			name: 'getValidatorsAtHash',
