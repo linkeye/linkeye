@@ -5210,16 +5210,8 @@ var blockCall = function (args) {
     return (utils.isString(args[0]) && args[0].indexOf('0x') === 0) ? "let_getBlockByHash" : "let_getBlockByNumber";
 };
 
-var letBlockCall = function (args) {
-    return (utils.isString(args[0]) && args[0].indexOf('0x') === 0) ? "let_ethGetBlockByHash" : "let_ethGetBlockByNumber";
-};
-
 var transactionFromBlockCall = function (args) {
     return (utils.isString(args[0]) && args[0].indexOf('0x') === 0) ? 'let_getTransactionByBlockHashAndIndex' : 'let_getTransactionByBlockNumberAndIndex';
-};
-
-var letTransactionFromBlockCall = function (args) {
-    return (utils.isString(args[0]) && args[0].indexOf('0x') === 0) ? 'let_ethGetTransactionByBlockHashAndIndex' : 'let_ethGetTransactionByBlockNumberAndIndex';
 };
 
 var uncleCall = function (args) {
