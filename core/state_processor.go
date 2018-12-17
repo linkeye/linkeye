@@ -95,7 +95,7 @@ func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext
 		log.Error("ApplyTransaction:", "err", err)
 		return nil, 0, err
 	}
-	if msg.Type() != types.Binary {
+	if msg.Type() != types.Binary && (config.DPOS != nil || config.DBFT != nil){
 		if err = applyDposMessage(dposContext, msg, statedb, header); err != nil {
 			log.Error("applyDposMsg:", "err", err)
 			return nil, 0, err
