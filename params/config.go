@@ -102,9 +102,11 @@ var (
 		ByzantiumBlock: big.NewInt(math.MaxInt64), // Don't enable yet
 
 		DBFT: &DBFTConfig{
-			Period: 5,
+			Period: 10,
+			//Period: 15,
 			//Epoch:          30000,
 			Epoch:          30,
+			//Epoch:          45,
 			ProposerPolicy: 0,
 			Validators: []common.Address{
 				common.HexToAddress("0x1250153d47f29446538d68b1acc20c89c786fb8f"),

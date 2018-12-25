@@ -473,6 +473,63 @@ func (d *DposContext) Commit() (*DposContextProto, error) {
 	}, nil
 }
 
+func (d *DposContext) CommitTo(dbw *trie.Database) (*DposContextProto, error) {
+	epochRoot, err := d.epochTrie.CommitTo(dbw)
+	if err != nil {
+		return nil, err
+
+	}
+	delegateRoot, err := d.delegateTrie.CommitTo(dbw)
+	if err != nil {
+		return nil, err
+
+	}
+
+	voteRoot, err := d.voteTrie.CommitTo(dbw)
+	if err != nil {
+		return nil, err
+
+	}
+	candidateRoot, err := d.candidateTrie.CommitTo(dbw)
+	if err != nil {
+		return nil, err
+
+	}
+	mintCntRoot, err := d.mintCntTrie.CommitTo(dbw)
+	if err != nil {
+		return nil, err
+
+	}
+	if err := dbw.Commit(epochRoot, false); err != nil {
+		return nil, err
+
+	}
+	if err := dbw.Commit(delegateRoot, false); err != nil {
+		return nil, err
+
+	}
+	if err := dbw.Commit(voteRoot, false); err != nil {
+		return nil, err
+
+	}
+	if err := dbw.Commit(candidateRoot, false); err != nil {
+		return nil, err
+
+	}
+	if err := dbw.Commit(mintCntRoot, false); err != nil {
+		return nil, err
+
+	}
+
+	return &DposContextProto{
+		EpochHash:     epochRoot,
+		DelegateHash:  delegateRoot,
+		VoteHash:      voteRoot,
+		CandidateHash: candidateRoot,
+		MintCntHash:   mintCntRoot,
+	}, nil
+}
+
 func (d *DposContext) CandidateTrie() *trie.Trie          { return d.candidateTrie }
 func (d *DposContext) DelegateTrie() *trie.Trie           { return d.delegateTrie }
 func (d *DposContext) VoteTrie() *trie.Trie               { return d.voteTrie }
@@ -529,6 +586,7 @@ func (dc *DposContext) GetCandidateContext(candidateAddr common.Address) (Candid
 	ccRLP := dc.candidateTrie.Get(candidateAddr.Bytes())
 	log.Info("GetCandidateContext:", "candidateAddr", candidateAddr.String(), "ccRLP", hexutil.Encode(ccRLP))
 	if len(ccRLP) == 0 {
+		log.Info("GetCandidateContext: no candidateContext for ", "addr", candidateAddr.String())
 		return cc, nil
 	}
 	if err := rlp.DecodeBytes(ccRLP, &cc); err != nil {

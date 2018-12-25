@@ -95,7 +95,7 @@ func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext
 		log.Error("ApplyTransaction:", "err", err)
 		return nil, 0, err
 	}
-	if msg.Type() != types.Binary && (config.DPOS != nil || config.DBFT != nil){
+	if msg.Type() != types.Binary && (config.DPOS != nil || config.DBFT != nil) {
 		if err = applyDposMessage(dposContext, msg, statedb, header); err != nil {
 			log.Error("applyDposMsg:", "err", err)
 			return nil, 0, err
@@ -147,21 +147,24 @@ func applyDposMessage(dposContext *types.DposContext, msg types.Message, statedb
 
 			return nil
 		} else {
+			log.Info("applyDposMessage:LoginCandidate", "cc", cc)
 			// when state is logout, then login, change state to login
 			if cc.State == types.LogoutState {
-				cc := &types.CandidateContext{
+				cc1 := &types.CandidateContext{
 					Addr:        msg.From(),
 					State:       types.LoginState,
 					BlockNumber: header.Number,
 					Score:       cc.Score,
 				}
-				dposContext.SetCandidateContext(*cc)
+				dposContext.SetCandidateContext(*cc1)
+				log.Info("applyDposMessage:", "logout->logoin, from", msg.From())
 			} else if cc.State == types.LoginState && bytes.Compare(cc.Addr.Bytes(), msg.From().Bytes()) == 0 {
 				addDposLog(statedb, msg.From(), "RepeatLoginCandidate", "You are already in login state before, "+msg.From().String(), header)
+				log.Info("applyDposMessage:", "RepeatLogin, from", msg.From())
 				return nil
 			} else {
 				// first login
-				log.Info("applyDposMessage:", "LoginCandidate, from", msg.From())
+				log.Info("applyDposMessage:", "first LoginCandidate, from", msg.From())
 				bal := statedb.GetBalance(msg.From())
 				f := new(big.Float).SetInt(bal)
 				if f.Cmp(dpos.MinCandidateBalance) < 0 {
@@ -173,13 +176,13 @@ func applyDposMessage(dposContext *types.DposContext, msg types.Message, statedb
 				dpos.MinCandidateBalance.Int(minCandidate)
 				log.Info("LoginCandidate", "minCandidate", minCandidate)
 				statedb.SubBalance(msg.From(), minCandidate)
-				cc := &types.CandidateContext{
+				cc1 := &types.CandidateContext{
 					Addr:        msg.From(),
 					State:       types.LoginState, //扣币抵押
 					BlockNumber: header.Number,    //记录成为候选人时的区块高度
 					Score:       big.NewInt(0),
 				}
-				dposContext.SetCandidateContext(*cc)
+				dposContext.SetCandidateContext(*cc1)
 			}
 		}
 	case types.LogoutCandidate:
@@ -189,16 +192,19 @@ func applyDposMessage(dposContext *types.DposContext, msg types.Message, statedb
 			addDposLog(statedb, msg.From(), "LogoutCandidate", "failed to GetCandidateContext"+msg.From().String(), header)
 			return nil
 		} else {
+			log.Info("applyDposMessage:LogoutCandidate", "cc", cc)
 			//只在币处于login的状态下，才允许调用logout
 			if cc.State == types.LoginState && bytes.Compare(cc.Addr.Bytes(), msg.From().Bytes()) == 0 {
 				//更新候选人币的对应状态，更新为解锁状态中,记录开始解锁时的区块高度
-				cc := &types.CandidateContext{
+				cc1 := &types.CandidateContext{
 					Addr:        msg.From(),
 					State:       types.LogoutState,
 					BlockNumber: header.Number,
 					Score:       cc.Score,
 				}
-				dposContext.SetCandidateContext(*cc)
+				dposContext.SetCandidateContext(*cc1)
+				log.Info("applyDposMessage:", "login->logout, from", msg.From())
+				return nil
 			} else if cc.State == types.LogoutState {
 				addDposLog(statedb, msg.From(), "RepeatLogoutCandidate", "You are already in logout state before, "+msg.From().String(), header)
 				return nil

@@ -483,6 +483,23 @@ func (t *Trie) Commit(onleaf LeafCallback) (root common.Hash, err error) {
 	return common.BytesToHash(hash.(hashNode)), nil
 }
 
+// CommitTo writes all nodes to the given database.
+// Nodes are stored with their sha3 hash as the key.
+func (t *Trie) CommitTo(db *Database) (root common.Hash, err error) {
+	if t.db == nil {
+		panic("commit called on trie with nil database")
+
+	}
+	hash, cached, err := t.hashRoot(db, nil)
+	if err != nil {
+		return (common.Hash{}), err
+
+	}
+	t.root = cached
+	t.cachegen++
+	return common.BytesToHash(hash.(hashNode)), nil
+}
+
 func (t *Trie) hashRoot(db *Database, onleaf LeafCallback) (node, node, error) {
 	if t.root == nil {
 		return hashNode(emptyRoot.Bytes()), nil, nil

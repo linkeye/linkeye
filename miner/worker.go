@@ -192,7 +192,6 @@ func (self *worker) start() {
 	defer self.mu.Unlock()
 
 	atomic.StoreInt32(&self.mining, 1)
-
 	if bft, ok := self.engine.(consensus.BFT); ok {
 		log.Info("start BFT")
 		bft.Start(self.chain, self.chain.CurrentBlock, self.chain.HasBadBlock)
@@ -283,7 +282,7 @@ func (self *worker) update() {
 				// If we're mining, but nothing is being processed, wake on new transactions
 				if self.config.DPOS != nil && self.config.DPOS.Period == 0 {
 					self.commitNewWork()
-				}
+				} 
 			}
 
 		// System stopped
@@ -511,6 +510,8 @@ func (self *worker) commitNewWork() {
 		return
 	}
 
+	work.Block.DposContext = work.dposContext
+
 	// We only care about logging if we're actually mining.
 	if atomic.LoadInt32(&self.mining) == 1 {
 		log.Info("Commit new mining work", "number", work.Block.Number(), "txs", work.tcount, "uncles", len(uncles), "elapsed", common.PrettyDuration(time.Since(tstart)))
@@ -725,6 +726,7 @@ func (env *Work) commitTransactionsMining(mux *event.TypeMux, txs *types.Transac
 	}
 }
 
+
 func (env *Work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, coinbase common.Address, gp *core.GasPool) (error, []*types.Log) {
 	snap := env.state.Snapshot()
 	dposSnap := env.dposContext.Snapshot()
@@ -732,6 +734,7 @@ func (env *Work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, c
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
 		env.dposContext.RevertToSnapShot(dposSnap)
+		log.Error("RevertToSnapshot", "err", err)
 		return err, nil
 	}
 	env.txs = append(env.txs, tx)

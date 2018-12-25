@@ -52,8 +52,6 @@ type Snapshot struct {
 
 	DposContext *types.DposContext
 	StateDB     *state.StateDB
-	//Signers     map[common.Address]struct{} // Set of authorized signers at this moment
-	//Recents     map[uint64]common.Address   // Set of recent signers for spam protections
 }
 
 // newSnapshot create a new snapshot with the specified startup parameters. This
@@ -64,24 +62,40 @@ func newSnapshot(epoch uint64, number uint64, hash common.Hash, valSet bft.Valid
 		Epoch:  epoch,
 		Number: number,
 		Hash:   hash,
-		ValSet: valSet,
+		ValSet: valSet.Copy(),
 		Tally:  make(map[common.Address]Tally),
 
-		DposContext: dposContext,
+		DposContext: dposContext.Copy(),
 		StateDB:     state,
-		//Signers:     make(map[common.Address]struct{}),
-		//Recents:     make(map[uint64]common.Address),
 	}
 
-	// // get signer list
-	// validators, err := dposContext.GetValidators()
-	// if err != nil {
-	// 	return nil
-	// }
+	size := valSet.Size()
+	snap.ValSet = valSet.Copy()
 
-	// for _, signer := range validators {
-	// 	snap.Signers[signer] = struct{}{}
-	// }
+	addrs := make([]common.Address, 0)
+	for i := 0; i < size; i++ {
+		addr := snap.ValSet.GetByIndex(uint64(i)).Address()
+		addrs = append(addrs, addr)
+	}
+
+	for _, addr := range addrs {
+		snap.ValSet.RemoveValidator(addr)
+	}
+
+	if snap.ValSet.Size() > 0 {
+		log.Error("RemoveAllValidators err", "size", snap.ValSet.Size())
+	}
+
+	// get signer list
+	validators, err := dposContext.GetValidators()
+	log.Info("dposValidators", "size", len(validators))
+	if err != nil {
+		return nil
+	}
+
+	for _, signer := range validators {
+		snap.ValSet.AddValidator(signer)
+	}
 
 	return snap
 }
@@ -122,8 +136,6 @@ func (s *Snapshot) copy() *Snapshot {
 
 		// DposContext: s.DposContext.Copy(),
 		// StateDB:     s.StateDB.Copy(),//FIXME
-		// Signers:     make(map[common.Address]struct{}),
-		// Recents:     make(map[uint64]common.Address),
 	}
 
 	for address, tally := range s.Tally {
@@ -131,13 +143,10 @@ func (s *Snapshot) copy() *Snapshot {
 	}
 	copy(cpy.Votes, s.Votes)
 
-	// for addr, st := range s.Signers {
-	// 	cpy.Signers[addr] = st
-	// }
-
-	// for i, addr := range s.Recents {
-	// 	cpy.Recents[i] = addr
-	// }
+	cpy.DposContext = &types.DposContext{}
+	if s.DposContext != nil {
+		cpy.DposContext = s.DposContext.Copy()
+	}
 
 	return cpy
 }
@@ -221,6 +230,7 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 			return nil, errUnauthorized
 		}
 
+		/*
 		// Header authorized, discard any previous votes from the validator
 		for i, vote := range snap.Votes {
 			if vote.Validator == validator && vote.Address == header.Coinbase {
@@ -279,6 +289,7 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 			}
 			delete(snap.Tally, header.Coinbase)
 		}
+		*/
 	}
 	snap.Number += uint64(len(headers))
 	snap.Hash = headers[len(headers)-1].Hash()
@@ -316,8 +327,6 @@ type snapshotJSON struct {
 	// for dpos
 	DposContext *types.DposContext          `json:"dposcontext"`
 	StateDB     *state.StateDB              `json:"statedb"`
-	//Signers     map[common.Address]struct{} `json:"signers"` // Set of authorized signers at this moment
-	//Recents     map[uint64]common.Address   `json:"recents"` // Set of recent signers for spam protections
 }
 
 func (s *Snapshot) toJSONStruct() *snapshotJSON {
@@ -332,8 +341,6 @@ func (s *Snapshot) toJSONStruct() *snapshotJSON {
 
 		DposContext: s.DposContext,
 		StateDB:     s.StateDB,
-		// Signers:     s.Signers,
-		// Recents:     s.Recents,
 	}
 }
 
@@ -353,8 +360,6 @@ func (s *Snapshot) UnmarshalJSON(b []byte) error {
 
 	s.DposContext = j.DposContext
 	s.StateDB = j.StateDB
-	// s.Signers = j.Signers
-	// s.Recents = j.Recents
 	return nil
 }
 

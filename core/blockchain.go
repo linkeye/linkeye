@@ -882,20 +882,36 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	// Write other block data using a batch.
 	batch := bc.db.NewBatch()
 	if err := WriteBlock(batch, block); err != nil {
+		log.Error("WriteBlockWithState writeBlock", "err", err)
 		return NonStatTy, err
 	}
 
+	//FIXME:
+	/*
 	if block.DposContext != nil {
 		if _, err := block.DposContext.Commit(); err != nil {
+			log.Error("WriteBlockWithState DposContext.Commit", "err", err)
 			return NonStatTy, err
 		}
 	}
+	*/
 
 	root, err := state.Commit(bc.chainConfig.IsEIP158(block.Number()))
 	if err != nil {
 		return NonStatTy, err
 	}
 	triedb := bc.stateCache.TrieDB()
+
+	dposContext, err := types.NewDposContextFromProto(bc.db, block.Header().DposContext)
+	block.DposContext = dposContext
+	if err != nil {
+		return NonStatTy, err
+	}
+
+	if _, err := block.DposContext.CommitTo(triedb); err != nil {
+		log.Error("WriteBlockWithState dposCommitTo", "err", err)
+		return NonStatTy, err
+	}
 
 	// If we're running an archive node, always flush
 	if bc.cacheConfig.Disabled {
@@ -1123,6 +1139,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			}
 
 		case err != nil:
+			log.Error("insertChain", "err", err)
 			bc.reportBlock(block, nil, err)
 			return i, events, coalescedLogs, err
 		}

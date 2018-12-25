@@ -289,12 +289,15 @@ func (c *DPOS) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 		return errInvalidCheckpointBeneficiary
 	}*/
 	// Nonces must be 0x00..0 or 0xff..f, zeroes enforced on checkpoints
+	/*
 	if !bytes.Equal(header.Nonce[:], nonceAuthVote) && !bytes.Equal(header.Nonce[:], nonceDropVote) {
 		return errInvalidVote
 	}
+	*/
 	/*if checkpoint && !bytes.Equal(header.Nonce[:], nonceDropVote) {
 		return errInvalidCheckpointVote
 	}*/
+
 	// Check that the extra-data contains both the vanity and signature
 	if len(header.Extra) < extraVanity {
 		return errMissingVanity
@@ -588,6 +591,7 @@ func (c *DPOS) Finalize(chain consensus.ChainReader, header *types.Header, state
 
 	epoch, err := newEpochContext(number-1, header.ParentHash, dposContext, state)
 	if err != nil {
+		log.Error("newEpochContext", "err", err)
 		return nil, err
 	}
 
@@ -596,14 +600,20 @@ func (c *DPOS) Finalize(chain consensus.ChainReader, header *types.Header, state
 		genesis := chain.GetHeaderByNumber(0)
 		err = epoch.tryElect(genesis, parent)
 		if err != nil {
+			log.Error("tryElect", "err", err)
 			return nil, fmt.Errorf("got error when elect next epoch, err: %s", err)
 		}
 	}
 
 	//update mint count trie
-	epoch.updateMintCnt(header.Coinbase)
+	//epoch.updateMintCnt(header.Coinbase)
 
 	header.DposContext = epoch.DposContext.ToProto()
+
+	//add dposcontext
+	if _, err := dposContext.CommitTo(state.Database().TrieDB()); err != nil {
+		log.Error("Finalize dposContext.CommitTo", "err", err)
+	}
 
 	// Assemble and return the final block for sealing
 	block := types.NewBlock(header, txs, nil, receipts)

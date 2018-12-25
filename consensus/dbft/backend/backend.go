@@ -9,7 +9,6 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/linkeye/linkeye/common"
-	"github.com/linkeye/linkeye/common/hexutil"
 	"github.com/linkeye/linkeye/consensus"
 	bft "github.com/linkeye/linkeye/consensus/dbft"
 	dbftCore "github.com/linkeye/linkeye/consensus/dbft/core"
@@ -244,9 +243,7 @@ func (sb *backend) Verify(proposal bft.Proposal) (time.Duration, error) {
 // Sign implements bft.Backend.Sign
 func (sb *backend) Sign(data []byte) ([]byte, error) {
 	hashData := crypto.Keccak256([]byte(data))
-	hash := common.BytesToHash(hashData)
 	sig, err :=  crypto.Sign(hashData, sb.privateKey)
-	log.Info("Sign", "hash", hash.String(), "privateKye", fmt.Sprintf("%x", sb.privateKey.D), "addr", sb.Address().String(), "sig", hexutil.Encode(sig))
 	return sig, err
 }
 

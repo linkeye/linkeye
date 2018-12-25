@@ -6,7 +6,6 @@ import (
 
 	"github.com/linkeye/linkeye/common"
 	"github.com/linkeye/linkeye/rlp"
-	"github.com/linkeye/linkeye/log"
 	"github.com/linkeye/linkeye/common/hexutil"
 	bft "github.com/linkeye/linkeye/consensus/dbft"
 )
@@ -114,7 +113,6 @@ func (m *message) DecodeRLP(s *rlp.Stream) error {
 func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.Address, error)) error {
 	// Decode message
 	err := rlp.DecodeBytes(b, &m)
-	log.Info("FromPayload", "m", m.String())
 	if err != nil {
 		return err
 	}

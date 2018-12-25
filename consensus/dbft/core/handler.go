@@ -127,8 +127,6 @@ func (c *core) handleMsg(payload []byte) error {
 		return err
 	}
 
-	logger.Info("handleMsg", "msg", msg)
-
 	// Only accept message if the address is valid
 	_, src := c.valSet.GetByAddress(msg.Address)
 	if src == nil {
