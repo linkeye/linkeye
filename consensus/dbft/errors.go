@@ -10,4 +10,6 @@ var (
 	ErrStoppedEngine = errors.New("stopped engine")
 	// ErrStartedEngine is returned if the engine is already started
 	ErrStartedEngine = errors.New("started engine")
+	// ErrMsg is returned if the msg is not good
+	ErrMsg = error.New("bad message")
 )
