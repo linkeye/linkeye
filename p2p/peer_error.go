@@ -53,6 +53,7 @@ const (
 	DiscUnexpectedIdentity
 	DiscSelf
 	DiscReadTimeout
+	DiscBanpeer
 	DiscSubprotocolError = 0x10
 )
 
@@ -69,6 +70,7 @@ var discReasonToString = [...]string{
 	DiscUnexpectedIdentity:  "unexpected identity",
 	DiscSelf:                "connected to self",
 	DiscReadTimeout:         "read timeout",
+	DiscBanpeer:             "ban bad peer",
 	DiscSubprotocolError:    "subprotocol error",
 }
 
