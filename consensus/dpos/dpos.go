@@ -135,6 +135,7 @@ var (
 	ErrInvalidBlockValidator      = errors.New("invalid block validator")
 	ErrInvalidMintBlockTime       = errors.New("invalid time to mint the block")
 	ErrNilBlockHeader             = errors.New("nil block header returned")
+	ErrUncleNotAllowed            = errors.New("uncles not allowed")
 )
 
 // SignerFn is a signer callback function to request a hash to be signed by a
@@ -408,7 +409,7 @@ func (c *DPOS) epochContext(chain consensus.ChainReader, number uint64, hash com
 // uncles as this consensus mechanism doesn't permit uncles.
 func (c *DPOS) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
 	if len(block.Uncles()) > 0 {
-		return errors.New("uncles not allowed")
+		return ErrUncleNotAllowed
 	}
 	return nil
 }
